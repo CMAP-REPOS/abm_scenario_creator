@@ -10,12 +10,22 @@
 import os
 import sys
 import arcpy
+arcpy.env.OverwriteOutput = True
 
+# -----------------------------------------------------------------------------
+#  1. DIRECTORIES & FILES
+# -----------------------------------------------------------------------------
 prog_dir = os.path.dirname(os.path.realpath(__file__))
 gdb_dir = prog_dir.rsplit(os.sep, 1)[0]
 gdb_name = 'TMM_GIS'
 gdb = gdb_dir + os.sep + gdb_name + '.gdb'
 proj = prog_dir + os.sep + 'TMM_NAD27.prj'
+
+
+# -----------------------------------------------------------------------------
+#  2. MISCELLANEOUS PARAMETERS
+# -----------------------------------------------------------------------------
+node_id_field = 'ID_int'
 
 node_fields = (
     'ADD_ADA',
@@ -39,3 +49,34 @@ tline_fields = (
     'LOWER_FLOOR',
     'NEW_VEHICLES'
 )
+
+
+# -----------------------------------------------------------------------------
+#  3. METHODS
+# -----------------------------------------------------------------------------
+def check_selection(lyr):
+    ''' Check whether specified feature layer has a selection. '''
+    import arcpy
+    desc = arcpy.Describe(lyr)
+    selected = desc.FIDSet
+    if len(selected) == 0:
+        return False
+    else:
+        return True
+
+
+def delete_if_exists(filepath):
+    ''' Check if a file exists, and delete it if so. '''
+    if arcpy.Exists(filepath):
+        arcpy.Delete_management(filepath)
+        message = filepath + ' successfully deleted.'
+    else:
+        message = filepath + ' does not exist.'
+    return message
+
+
+def die(error_message):
+    ''' End processing prematurely. '''
+    arcpy.AddError('\n' + error_message + '\n')
+    sys.exit()
+    return None

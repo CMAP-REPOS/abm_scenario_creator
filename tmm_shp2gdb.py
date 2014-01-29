@@ -19,18 +19,12 @@ import arcpy
 import TMM
 
 # Set parameters
-shp_root_dir = arcpy.GetParameterAsText(0)              # 'C:/WorkSpace/TransitModernizationModel/TMM_Test/Media'
-#prog_dir = os.path.dirname(os.path.realpath(__file__))  # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS/TMM_Programs'
-#gdb_dir = prog_dir.rsplit(os.sep, 1)[0]                 # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS'
-#gdb_name = 'TMM_GIS'
-#gdb = gdb_dir + os.sep + gdb_name + '.gdb'
-#tmm_proj = prog_dir + '/TMM_NAD27.prj'
+shp_root_dir = arcpy.GetParameterAsText(0)  # 'C:/WorkSpace/TransitModernizationModel/TMM_Test/Media'
 
 
 # Create geodatabase
 arcpy.AddMessage('\nCreating geodatabase {0}...\n'.format(TMM.gdb))
-if arcpy.Exists(TMM.gdb):
-    arcpy.Delete_management(TMM.gdb)
+TMM.delete_if_exists(TMM.gdb)
 arcpy.CreateFileGDB_management (TMM.gdb_dir, TMM.gdb_name)
 
 
@@ -64,9 +58,8 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
     tline_fc = tod_fd + '/emme_tlines_{0}'.format(tod)
 
     # Create an integer version of the nodes 'ID' field (which is FLOAT):
-    node_id_field = 'ID_int'
-    arcpy.AddField_management(node_fc, node_id_field, 'LONG')
-    arcpy.CalculateField_management(node_fc, node_id_field, 'int(round(!ID!))', 'PYTHON_9.3')
+    arcpy.AddField_management(node_fc, TMM.node_id_field, 'LONG')
+    arcpy.CalculateField_management(node_fc, TMM.node_id_field, 'int(round(!ID!))', 'PYTHON_9.3')
 
     # Append unique nodes/tlines to all-day feature classes
     arcpy.AddMessage('-- Identifying unique nodes/tlines...\n')
@@ -77,7 +70,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
         arcpy.CopyFeatures_management(node_fc, day_node_fc)
     else:
         new_nodes_lyr = 'new_nodes_lyr'
-        new_nodes_query = ''' "{0}" NOT IN ({1}) '''.format(node_id_field, ','.join((str(id) for id in unique_nodes)))
+        new_nodes_query = ''' "{0}" NOT IN ({1}) '''.format(TMM.node_id_field, ','.join((str(id) for id in unique_nodes)))
         arcpy.MakeFeatureLayer_management(node_fc, new_nodes_lyr, new_nodes_query)
         arcpy.Append_management([new_nodes_lyr], day_node_fc)
         arcpy.Delete_management(new_nodes_lyr)
@@ -92,7 +85,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
         arcpy.Delete_management(new_tlines_lyr)
 
     # Iterate through TOD FCs and identify all unique IDs:
-    unique_nodes.update((row[0] for row in arcpy.da.SearchCursor(node_fc, [node_id_field])))
+    unique_nodes.update((row[0] for row in arcpy.da.SearchCursor(node_fc, [TMM.node_id_field])))
     unique_tlines.update((row[0] for row in arcpy.da.SearchCursor(tline_fc, ['ID'])))
 
 
