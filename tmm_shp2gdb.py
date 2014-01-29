@@ -16,38 +16,40 @@
 import os
 import sys
 import arcpy
+import TMM
 
+# Set parameters
 shp_root_dir = arcpy.GetParameterAsText(0)              # 'C:/WorkSpace/TransitModernizationModel/TMM_Test/Media'
-prog_dir = os.path.dirname(os.path.realpath(__file__))  # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS/TMM_Programs'
-gdb_dir = prog_dir.rsplit(os.sep, 1)[0]                 # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS'
-gdb_name = 'TMM_GIS'
-gdb = gdb_dir + os.sep + gdb_name + '.gdb'
-tmm_proj = prog_dir + '/TMM_NAD27.prj'
-
-unique_nodes = set()
-unique_tlines = set()
+#prog_dir = os.path.dirname(os.path.realpath(__file__))  # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS/TMM_Programs'
+#gdb_dir = prog_dir.rsplit(os.sep, 1)[0]                 # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS'
+#gdb_name = 'TMM_GIS'
+#gdb = gdb_dir + os.sep + gdb_name + '.gdb'
+#tmm_proj = prog_dir + '/TMM_NAD27.prj'
 
 
 # Create geodatabase
-arcpy.AddMessage('\nCreating geodatabase {0}...\n'.format(gdb))
-if arcpy.Exists(gdb):
-    arcpy.Delete_management(gdb)
-arcpy.CreateFileGDB_management (gdb_dir, gdb_name)
+arcpy.AddMessage('\nCreating geodatabase {0}...\n'.format(TMM.gdb))
+if arcpy.Exists(TMM.gdb):
+    arcpy.Delete_management(TMM.gdb)
+arcpy.CreateFileGDB_management (TMM.gdb_dir, TMM.gdb_name)
 
 
 # Create TOD-specific FDs and FCs from shapefiles and identify unique node/tline IDs:
+unique_nodes = set()
+unique_tlines = set()
+
 for tod in (1, 2, 3, 4, 5, 6, 7, 8):
     arcpy.AddMessage('TOD {0}:'.format(tod))
     shp_dir = shp_root_dir + '/Scenario_10{0}'.format(tod)
     tod_fd_name = 'tod_{0}'.format(tod)
-    tod_fd = gdb + '/' + tod_fd_name
+    tod_fd = TMM.gdb + '/' + tod_fd_name
     day_fd_name = 'tod_all'
-    day_fd = gdb + '/' + day_fd_name
+    day_fd = TMM.gdb + '/' + day_fd_name
 
     arcpy.AddMessage('-- Creating feature dataset...')
-    arcpy.CreateFeatureDataset_management(gdb, tod_fd_name, tmm_proj)
+    arcpy.CreateFeatureDataset_management(TMM.gdb, tod_fd_name, TMM.proj)
     if not arcpy.Exists(day_fd):
-        arcpy.CreateFeatureDataset_management(gdb, day_fd_name, tmm_proj)
+        arcpy.CreateFeatureDataset_management(TMM.gdb, day_fd_name, TMM.proj)
 
     arcpy.AddMessage('-- Creating feature classes from shapefiles...')
     for dirpath, dirnames, filenames in arcpy.da.Walk(shp_dir):
@@ -55,7 +57,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
             if filename.endswith('.shp'):
                 shp_file = os.path.join(dirpath, filename)
                 gdb_fc = tod_fd + '/{0}_{1}'.format(filename[:-4], tod)
-                arcpy.DefineProjection_management(shp_file, tmm_proj)
+                arcpy.DefineProjection_management(shp_file, TMM.proj)
                 arcpy.CopyFeatures_management(shp_file, gdb_fc)
 
     node_fc = tod_fd + '/emme_nodes_{0}'.format(tod)
@@ -97,13 +99,13 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
 # Create extra attribute tables:
 arcpy.AddMessage('Creating node extra attribute table...')
 node_table_name = 'extra_attr_nodes'
-node_table = gdb + '/' + node_table_name
-arcpy.CreateTable_management(gdb, node_table_name)
+node_table = TMM.gdb + '/' + node_table_name
+arcpy.CreateTable_management(TMM.gdb, node_table_name)
 
 arcpy.AddMessage('Creating tline extra attribute table...\n')
 tline_table_name = 'extra_attr_tlines'
-tline_table = gdb + '/' + tline_table_name
-arcpy.CreateTable_management(gdb, tline_table_name)
+tline_table = TMM.gdb + '/' + tline_table_name
+arcpy.CreateTable_management(TMM.gdb, tline_table_name)
 
 
 # Populate extra attibute tables with unique IDs:
@@ -121,35 +123,12 @@ with arcpy.da.InsertCursor(tline_table, ['TLINE_ID']) as cursor:
 
 
 # Add policy fields to node/tline tables:
-node_fields = (
-    'ADD_ADA',
-    'ADD_INFO',
-    'ADD_PA',
-    'ADD_RETAIL',
-    'ADD_SEATS',
-    'ADD_SEC_CAM',
-    'ADD_SHELTER',
-    'ADD_WALKWAY',
-    'ENLARGE_AREA',
-    'FACELIFT',
-    'IMP_LIGHTING',
-    'IMP_WARMING'
-)
-
-tline_fields = (
-    'ADD_STAND_CAP',
-    'ADD_WIFI',
-    'IMP_SEATS',
-    'LOWER_FLOOR',
-    'NEW_VEHICLES'
-)
-
 arcpy.AddMessage('Adding extra attribute fields to node table...')
-for field_name in node_fields:
+for field_name in TMM.node_fields:
     arcpy.AddField_management(node_table, field_name, 'SHORT')
 
 arcpy.AddMessage('Adding extra attribute fields to tline table...\n')
-for field_name in tline_fields:
+for field_name in TMM.tline_fields:
     arcpy.AddField_management(tline_table, field_name, 'SHORT')
 
 arcpy.AddMessage('All done!\n')
