@@ -21,7 +21,7 @@ shp_root_dir = arcpy.GetParameterAsText(0)              # 'C:/WorkSpace/TransitM
 prog_dir = os.path.dirname(os.path.realpath(__file__))  # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS/TMM_Programs'
 gdb_dir = prog_dir.rsplit(os.sep, 1)[0]                 # 'C:/WorkSpace/TransitModernizationModel/TMM_GIS'
 gdb_name = 'TMM_GIS'
-gdb = gdb_dir + '/' + gdb_name + '.gdb'
+gdb = gdb_dir + os.sep + gdb_name + '.gdb'
 tmm_proj = prog_dir + '/TMM_NAD27.prj'
 
 unique_nodes = set()
