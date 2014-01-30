@@ -15,19 +15,18 @@ import arcpy
 import TMM
 
 # Set parameters:
-tlines_lyr = arcpy.GetParameter(0)
+tlines_lyr = arcpy.GetParameterAsText(0)
 policy_values = [arcpy.GetParameter(i+1) for i in xrange(len(TMM.tline_fields))]
-
 
 # Verify some features are selected, otherwise fail:
 if not TMM.check_selection(tlines_lyr):
     TMM.die('You must select at least one feature from "{0}" before continuing. (If you want the policy changes to be regionwide, please select all features.)'.format(tlines_lyr))
 
 
-# Iterate through extra_attr_lines table, updating rows for selected features:
+# Iterate through extra_attr_tlines table, updating rows for selected features:
 selected_tlines = [row[0] for row in arcpy.da.SearchCursor(tlines_lyr, ['ID'])]
 
 tline_table = TMM.gdb + '/extra_attr_tlines'
-with arcpy.da.UpdateCursor(tline_table, TMM.tline_fields, ''' "ID" IN ({0}) '''.format(','.join(selected_tlines))) as cursor:
+with arcpy.da.UpdateCursor(tline_table, TMM.tline_fields, ''' "TLINE_ID" IN ('{0}') '''.format("','".join(selected_tlines))) as cursor:
     for row in cursor:
         cursor.updateRow(policy_values)

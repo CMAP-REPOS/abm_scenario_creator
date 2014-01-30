@@ -119,9 +119,11 @@ with arcpy.da.InsertCursor(tline_table, ['TLINE_ID']) as cursor:
 arcpy.AddMessage('Adding extra attribute fields to node table...')
 for field_name in TMM.node_fields:
     arcpy.AddField_management(node_table, field_name, 'SHORT')
+    arcpy.CalculateField_management(node_table, field_name, '0', 'PYTHON')
 
 arcpy.AddMessage('Adding extra attribute fields to tline table...\n')
 for field_name in TMM.tline_fields:
     arcpy.AddField_management(tline_table, field_name, 'SHORT')
+    arcpy.CalculateField_management(tline_table, field_name, '0', 'PYTHON')
 
 arcpy.AddMessage('All done!\n')
