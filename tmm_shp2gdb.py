@@ -70,7 +70,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
         arcpy.CopyFeatures_management(node_fc, day_node_fc)
     else:
         new_nodes_lyr = 'new_nodes_lyr'
-        new_nodes_query = ''' "{0}" NOT IN ({1}) '''.format(TMM.node_id_field, ','.join((str(id) for id in unique_nodes)))
+        new_nodes_query = ''' "{0}" NOT IN ({1}) '''.format(TMM.node_id_field, ','.join((str(node_id) for node_id in unique_nodes)))
         arcpy.MakeFeatureLayer_management(node_fc, new_nodes_lyr, new_nodes_query)
         arcpy.Append_management([new_nodes_lyr], day_node_fc)
         arcpy.Delete_management(new_nodes_lyr)
@@ -79,7 +79,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
         arcpy.CopyFeatures_management(tline_fc, day_tline_fc)
     else:
         new_tlines_lyr = 'new_tlines_lyr'
-        new_tlines_query = ''' "ID" NOT IN ('{0}') '''.format("','".join((id for id in unique_tlines)))
+        new_tlines_query = ''' "ID" NOT IN ('{0}') '''.format("','".join((tline_id for tline_id in unique_tlines)))
         arcpy.MakeFeatureLayer_management(tline_fc, new_tlines_lyr, new_tlines_query)
         arcpy.Append_management([new_tlines_lyr], day_tline_fc)
         arcpy.Delete_management(new_tlines_lyr)
