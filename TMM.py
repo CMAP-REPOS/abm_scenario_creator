@@ -2,7 +2,7 @@
 '''
     TMM.py
     Author: npeterson
-    Revised: 1/29/2014
+    Revised: 2/6/2014
     ---------------------------------------------------------------------------
     This module stores information used by other TMM scripts.
 
@@ -16,9 +16,9 @@ arcpy.env.OverwriteOutput = True
 #  1. DIRECTORIES & FILES
 # -----------------------------------------------------------------------------
 prog_dir = os.path.dirname(os.path.realpath(__file__))
-gdb_dir = prog_dir.rsplit(os.sep, 1)[0]
+gdb_dir = os.path.split(prog_dir)[0]
 gdb_name = 'TMM_GIS'
-gdb = os.path.join(gdb_dir, gdb_name + '.gdb')
+gdb = os.path.join(gdb_dir, '{0}.gdb'.format(gdb_name))
 proj = os.path.join(prog_dir, 'TMM_NAD27.prj')
 
 
