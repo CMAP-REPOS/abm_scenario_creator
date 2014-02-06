@@ -2,7 +2,7 @@
 '''
     tmm_shp2gdb.py
     Author: npeterson
-    Revised: 1/28/2014
+    Revised: 2/6/2014
     ---------------------------------------------------------------------------
     This script will convert a set of shapefiles generated from all 8 TODs in
     an Emme network (via Emme's "Export Network As Shapefile" Modeller tool)
@@ -18,14 +18,14 @@ import sys
 import arcpy
 import TMM
 
-# Set parameters
+# Set parameters:
 shp_root_dir = arcpy.GetParameterAsText(0)  # 'C:/WorkSpace/TransitModernizationModel/TMM_Test/Media'
 
 
-# Create geodatabase
+# Create geodatabase:
 arcpy.AddMessage('\nCreating geodatabase {0}...\n'.format(TMM.gdb))
 TMM.delete_if_exists(TMM.gdb)
-arcpy.CreateFileGDB_management (TMM.gdb_dir, TMM.gdb_name)
+arcpy.CreateFileGDB_management(TMM.gdb_dir, TMM.gdb_name)
 
 
 # Create TOD-specific FDs and FCs from shapefiles and identify unique node/tline IDs:
@@ -34,11 +34,11 @@ unique_tlines = set()
 
 for tod in (1, 2, 3, 4, 5, 6, 7, 8):
     arcpy.AddMessage('TOD {0}:'.format(tod))
-    shp_dir = shp_root_dir + '/Scenario_10{0}'.format(tod)
+    shp_dir = os.path.join(shp_root_dir, 'Scenario_10{0}'.format(tod))
     tod_fd_name = 'tod_{0}'.format(tod)
-    tod_fd = TMM.gdb + '/' + tod_fd_name
+    tod_fd = os.path.join(TMM.gdb, tod_fd_name)
     day_fd_name = 'tod_all'
-    day_fd = TMM.gdb + '/' + day_fd_name
+    day_fd = os.path.join(TMM.gdb, day_fd_name)
 
     arcpy.AddMessage('-- Creating feature dataset...')
     arcpy.CreateFeatureDataset_management(TMM.gdb, tod_fd_name, TMM.proj)
@@ -50,21 +50,21 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
         for filename in filenames:
             if filename.endswith('.shp'):
                 shp_file = os.path.join(dirpath, filename)
-                gdb_fc = tod_fd + '/{0}_{1}'.format(filename[:-4], tod)
+                gdb_fc = os.path.join(tod_fd, '{0}_{1}'.format(filename[:-4], tod))
                 arcpy.DefineProjection_management(shp_file, TMM.proj)
                 arcpy.CopyFeatures_management(shp_file, gdb_fc)
 
-    node_fc = tod_fd + '/emme_nodes_{0}'.format(tod)
-    tline_fc = tod_fd + '/emme_tlines_{0}'.format(tod)
+    node_fc = os.path.join(tod_fd, 'emme_nodes_{0}'.format(tod))
+    tline_fc = os.path.join(tod_fd, 'emme_tlines_{0}'.format(tod))
 
     # Create an integer version of the nodes 'ID' field (which is FLOAT):
     arcpy.AddField_management(node_fc, TMM.node_id_field, 'LONG')
     arcpy.CalculateField_management(node_fc, TMM.node_id_field, 'int(round(!ID!))', 'PYTHON_9.3')
 
-    # Append unique nodes/tlines to all-day feature classes
+    # Append unique nodes/tlines to all-day feature classes:
     arcpy.AddMessage('-- Identifying unique nodes/tlines...\n')
-    day_node_fc = day_fd + '/emme_nodes_all'
-    day_tline_fc = day_fd + '/emme_tlines_all'
+    day_node_fc = os.path.join(day_fd, 'emme_nodes_all')
+    day_tline_fc = os.path.join(day_fd, 'emme_tlines_all')
 
     if not arcpy.Exists(day_node_fc):
         arcpy.CopyFeatures_management(node_fc, day_node_fc)
@@ -92,12 +92,12 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
 # Create extra attribute tables:
 arcpy.AddMessage('Creating node extra attribute table...')
 node_table_name = 'extra_attr_nodes'
-node_table = TMM.gdb + '/' + node_table_name
+node_table = os.path.join(TMM.gdb, node_table_name)
 arcpy.CreateTable_management(TMM.gdb, node_table_name)
 
 arcpy.AddMessage('Creating tline extra attribute table...\n')
 tline_table_name = 'extra_attr_tlines'
-tline_table = TMM.gdb + '/' + tline_table_name
+tline_table = os.path.join(TMM.gdb, tline_table_name)
 arcpy.CreateTable_management(TMM.gdb, tline_table_name)
 
 
