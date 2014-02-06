@@ -25,7 +25,7 @@ proj = os.path.join(prog_dir, 'TMM_NAD27.prj')
 # -----------------------------------------------------------------------------
 #  2. MISCELLANEOUS PARAMETERS
 # -----------------------------------------------------------------------------
-node_id_field = 'ID_int'
+node_id_field = 'ID_int'  # Emme exports node "ID" values as floats. Need ints for queries.
 
 node_fields = (
     'ADD_ADA',
