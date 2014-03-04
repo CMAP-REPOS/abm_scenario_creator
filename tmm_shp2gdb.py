@@ -2,7 +2,7 @@
 '''
     tmm_shp2gdb.py
     Author: npeterson
-    Revised: 2/6/2014
+    Revised: 3/4/2014
     ---------------------------------------------------------------------------
     This script will convert a set of shapefiles generated from all 8 TODs in
     an Emme network (via Emme's "Export Network As Shapefile" Modeller tool)
@@ -78,7 +78,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
 
     # Append new unique nodes from TOD's itineraries to all-day fc:
     arcpy.AddMessage('-- Identifying unique nodes...\n')
-    new_tlines = (row[0] for row in arcpy.da.SearchCursor(new_tlines_lyr, ['ID']))
+    new_tlines = [row[0] for row in arcpy.da.SearchCursor(new_tlines_lyr, ['ID'])]
     new_tsegs_lyr = 'new_tsegs_lyr'
     new_tsegs_query = ''' "LINE_ID" IN ('{0}') '''.format("','".join((tline_id for tline_id in new_tlines)))
     arcpy.MakeFeatureLayer_management(tseg_fc, new_tsegs_lyr, new_tsegs_query)
@@ -117,28 +117,28 @@ arcpy.CreateTable_management(TMM.gdb, node_table_name)
 
 
 # Populate extra attibute tables with unique IDs:
-arcpy.AddMessage('Populating node table with IDs...')
-arcpy.AddField_management(node_table, 'NODE_ID', 'LONG')
-with arcpy.da.InsertCursor(node_table, ['NODE_ID']) as cursor:
-    for node_id in sorted(list(unique_nodes)):
-        cursor.insertRow([node_id])
-
-arcpy.AddMessage('Populating tline table with IDs...\n')
+arcpy.AddMessage('Populating tline table with IDs...')
 arcpy.AddField_management(tline_table, 'TLINE_ID', 'TEXT', field_length=20)
 with arcpy.da.InsertCursor(tline_table, ['TLINE_ID']) as cursor:
     for tline_id in sorted(list(unique_tlines)):
         cursor.insertRow([tline_id])
 
+arcpy.AddMessage('Populating node table with IDs...\n')
+arcpy.AddField_management(node_table, 'NODE_ID', 'LONG')
+with arcpy.da.InsertCursor(node_table, ['NODE_ID']) as cursor:
+    for node_id in sorted(list(unique_nodes)):
+        cursor.insertRow([node_id])
+
 
 # Add policy fields to node/tline tables:
-arcpy.AddMessage('Adding extra attribute fields to node table...')
-for field_name in TMM.node_fields:
-    arcpy.AddField_management(node_table, field_name, 'SHORT')
-    arcpy.CalculateField_management(node_table, field_name, '0', 'PYTHON')
-
-arcpy.AddMessage('Adding extra attribute fields to tline table...\n')
+arcpy.AddMessage('Adding extra attribute fields to tline table...')
 for field_name in TMM.tline_fields:
     arcpy.AddField_management(tline_table, field_name, 'SHORT')
     arcpy.CalculateField_management(tline_table, field_name, '0', 'PYTHON')
+
+arcpy.AddMessage('Adding extra attribute fields to node table...\n')
+for field_name in TMM.node_fields:
+    arcpy.AddField_management(node_table, field_name, 'SHORT')
+    arcpy.CalculateField_management(node_table, field_name, '0', 'PYTHON')
 
 arcpy.AddMessage('All done!\n')
