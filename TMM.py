@@ -17,6 +17,8 @@ arcpy.env.OverwriteOutput = True
 # -----------------------------------------------------------------------------
 prog_dir = os.path.dirname(os.path.realpath(__file__))
 gdb_dir = os.path.split(prog_dir)[0]
+input_dir = os.path.join(gdb_dir, 'input')
+output_dir = os.path.join(gdb_dir, 'output')
 gdb_name = 'TMM_GIS'
 gdb = os.path.join(gdb_dir, '{0}.gdb'.format(gdb_name))
 proj = os.path.join(prog_dir, 'TMM_NAD27.prj')
