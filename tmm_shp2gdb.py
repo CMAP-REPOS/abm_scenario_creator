@@ -2,7 +2,7 @@
 '''
     tmm_shp2gdb.py
     Author: npeterson
-    Revised: 3/4/2014
+    Revised: 3/19/2014
     ---------------------------------------------------------------------------
     This script will convert a set of shapefiles generated from all 8 TODs in
     an Emme network (via Emme's "Export Network As Shapefile" Modeller tool)
@@ -59,8 +59,8 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
     tseg_fc = os.path.join(tod_fd, 'emme_tsegs_{0}'.format(tod))
 
     # Create an integer version of the nodes 'ID' field (which is FLOAT):
-    arcpy.AddField_management(node_fc, TMM.node_id_field, 'LONG')
-    arcpy.CalculateField_management(node_fc, TMM.node_id_field, 'int(round(!ID!))', 'PYTHON_9.3')
+    arcpy.AddField_management(node_fc, TMM.node_id_int_field, 'LONG')
+    arcpy.CalculateField_management(node_fc, TMM.node_id_int_field, 'int(round(!ID!))', 'PYTHON_9.3')
 
     # Append unique tlines to all-day fc:
     arcpy.AddMessage('-- Identifying unique tlines...')
@@ -91,7 +91,7 @@ for tod in (1, 2, 3, 4, 5, 6, 7, 8):
     if not arcpy.Exists(day_node_fc):
         arcpy.CreateFeatureclass_management(os.path.split(day_node_fc)[0], os.path.split(day_node_fc)[1], 'POINT', node_fc)
     new_nodes_lyr = 'new_nodes_lyr'
-    new_nodes_query = ''' "{0}" IN ({1}) '''.format(TMM.node_id_field, ','.join((str(node_id) for node_id in new_nodes)))
+    new_nodes_query = ''' "{0}" IN ({1}) '''.format(TMM.node_id_int_field, ','.join((str(node_id) for node_id in new_nodes)))
     arcpy.MakeFeatureLayer_management(node_fc, new_nodes_lyr, new_nodes_query)
     arcpy.Append_management([new_nodes_lyr], day_node_fc)
 
