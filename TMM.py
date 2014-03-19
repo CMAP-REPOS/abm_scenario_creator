@@ -2,7 +2,7 @@
 '''
     TMM.py
     Author: npeterson
-    Revised: 2/6/2014
+    Revised: 3/19/2014
     ---------------------------------------------------------------------------
     This module stores information used by other TMM scripts.
 
@@ -25,7 +25,7 @@ proj = os.path.join(prog_dir, 'TMM_NAD27.prj')
 # -----------------------------------------------------------------------------
 #  2. MISCELLANEOUS PARAMETERS
 # -----------------------------------------------------------------------------
-node_id_field = 'ID_int'  # Emme exports node "ID" values as floats. Need ints for queries.
+node_id_int_field = 'ID_int'  # Emme exports node "ID" values as floats. Need ints for queries.
 
 node_fields = (
     'ADD_ADA',
@@ -80,3 +80,26 @@ def die(error_message):
     arcpy.AddError('\n' + error_message + '\n')
     sys.exit()
     return None
+
+
+def make_attribute_dict(fc, key_field, attr_list=['*']):
+    ''' Create a dictionary of feature class/table attributes, using OID as the
+        key. Default of ['*'] for attr_list (instead of actual attribute names)
+        will create a dictionary of all attributes.
+        - NOTE 1: when key_field is the OID field, the OID attribute name can
+          be fetched by MHN.determine_OID_fieldname(fc).
+        - NOTE 2: using attr_list=[] will essentially build a list of unique
+          key_field values. '''
+    attr_dict = {}
+    fc_field_objects = arcpy.ListFields(fc)
+    fc_fields = [field.name for field in fc_field_objects if field.type != 'Geometry']
+    if attr_list == ['*']:
+        valid_fields = fc_fields
+    else:
+        valid_fields = [field for field in attr_list if field in fc_fields]
+    # Ensure that key_field is always the first field in the field list
+    cursor_fields = [key_field] + list(set(valid_fields) - set([key_field]))
+    with arcpy.da.SearchCursor(fc, cursor_fields) as cursor:
+        for row in cursor:
+            attr_dict[row[0]] = dict(zip(cursor.fields, row))
+    return attr_dict
