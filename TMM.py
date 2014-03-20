@@ -41,7 +41,7 @@ node_fields = (
     'ENLARGE_AREA',
     'FACELIFT',
     'IMP_LIGHTING',
-    'IMP_WARMING'
+    'IMP_WARMING',
 )
 
 tline_fields = (
@@ -49,7 +49,7 @@ tline_fields = (
     'ADD_WIFI',
     'IMP_SEATS',
     'LOWER_FLOOR',
-    'NEW_VEHICLES'
+    'NEW_VEHICLES',
 )
 
 
