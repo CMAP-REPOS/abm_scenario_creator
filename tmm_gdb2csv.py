@@ -28,11 +28,11 @@ tod_periods = range(1, 9)  # 1-8
 tline_table = os.path.join(TMM.gdb, 'extra_attr_tlines')
 node_table = os.path.join(TMM.gdb, 'extra_attr_nodes')
 
-boarding_ease_csv_in = os.path.join(input_dir, 'boarding_ease_by_line_id.csv')
+tline_attr_csv_in = os.path.join(input_dir, 'boarding_ease_by_line_id.csv')
 bus_node_attr_csv_in = os.path.join(input_dir, 'bus_node_extra_attributes.csv')
 rail_node_attr_csv_in = os.path.join(input_dir, 'rail_node_extra_attributes.csv')
 
-boarding_ease_csv_out = boarding_ease_csv_in.replace(input_dir, output_dir)
+tline_attr_csv_out = tline_attr_csv_in.replace(input_dir, output_dir)
 bus_node_attr_csv_out = bus_node_attr_csv_in.replace(input_dir, output_dir)
 rail_node_attr_csv_out = rail_node_attr_csv_in.replace(input_dir, output_dir)
 
@@ -40,6 +40,81 @@ rail_node_attr_csv_out = rail_node_attr_csv_in.replace(input_dir, output_dir)
 # -----------------------------------------------------------------------------
 #  Define functions.
 # -----------------------------------------------------------------------------
+def adjust_easeb_value(tline_id, tline_dict, csv_dict, easeb_field):
+    ''' Create a composite score from a subset of the GDB tline table's fields,
+        to provide a boost to the @easeb extra attribute. '''
+    # Get current easeb value
+    current_easeb_value = int(csv_dict[tline_id][easeb_field])
+    max_easeb_value = 3  # 3 = 'level w/ platform'
+
+    # Update easeb values for tlines in GDB that could be improved
+    if tline_id in tline_dict and current_easeb_value < max_easeb_value:
+
+        # Set field scale factors (1 / maximum field value) & score weights
+        field_fwv = {
+            'ADD_STAND_CAP': {'f': 0.2, 'w': 1.0},
+            'NEW_VEHICLES':  {'f': 0.2, 'w': 1.0},
+        }
+
+        # If node is already ADA-accessible, remove 'ADD_ADA' from scoring
+        if csv_dict[tline_id]['accessible'] == '1':
+            field_fwv['ADD_ADA']['w'] = 0.0
+
+        # If node is already easeb=2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
+        if current_easeb_value >= 2:
+            field_fwv['ADD_WALKWAY']['w'] = 0.0
+
+        # Get current field values
+        for attr in field_fwv.keys():
+            field_fwv[attr]['v'] = int(tline_dict[tline_id][attr])
+
+        # Calculate node's improvement score (0-2)
+        node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
+        max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.keys()])
+        pct_improvement = node_improvement / max_improvement
+
+        # Guarantee improvement when 'LOWER_FLOOR' > current_easeb_value
+        lower_floors = int(tline_dict[tline_id]['LOWER_FLOOR'])
+        current_easeb_value = max(current_easeb_value, lower_floors)
+
+        # Calculate adjusted easeb value
+        max_adjustment = max_easeb_value - current_easeb_value
+        adjustment = round(max_adjustment * pct_improvement)  # The higher the current easeb, the harder it is to improve
+        adjusted_easeb_value = int(current_easeb_value + adjustment)
+
+        # Set adjusted easeb value
+        csv_dict[tline_id][easeb_field] = str(adjusted_easeb_value)
+        return str(adjusted_easeb_value)
+
+    # Ignore tlines not in GDB and easeb=3 tlines
+    else:
+        return str(current_easeb_value)
+
+
+def adjust_info_value(node_id, node_dict, csv_dict, info_field):
+    ''' Check existing real-time info value and update if appropriate. '''
+    # Get current info value
+    current_info_value = csv_dict[node_id][info_field]
+
+    # Update info values for nodes in GDB w/o real-time info already
+    if node_id in node_dict and current_info_value != '2':
+        add_info = node_dict[node_id]['ADD_INFO']
+        add_pa = node_dict[node_id]['ADD_PA']
+        if add_info + add_pa > 0:
+            adjusted_info_value = '2'
+        else:
+            adjusted_info_value = current_info_value
+
+        # Set adjusted info value
+        csv_dict[node_id][info_field] = adjusted_info_value
+        adjusted_info_value = current_info_value
+        return adjusted_info_value
+
+    # Ignore nodes not in GDB
+    else:
+        return current_info_value
+
+
 def adjust_type_value(node_id, node_dict, csv_dict, type_field):
     ''' Create a composite score from a subset of the GDB node table's fields,
         to provide a boost to the @bstyp/@rstyp extra attributes. '''
@@ -100,30 +175,6 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         return str(current_type_value)
 
 
-def adjust_info_value(node_id, node_dict, csv_dict, info_field):
-    ''' Check existing real-time info value and update if appropriate. '''
-    # Get current info value
-    current_info_value = csv_dict[node_id][info_field]
-
-    # Update info values for nodes in GDB w/o real-time info already
-    if node_id in node_dict and current_info_value != '2':
-        add_info = node_dict[node_id]['ADD_INFO']
-        add_pa = node_dict[node_id]['ADD_PA']
-        if add_info + add_pa > 0:
-            adjusted_info_value = '2'
-        else:
-            adjusted_info_value = current_info_value
-
-        # Set adjusted info value
-        csv_dict[node_id][info_field] = adjusted_info_value
-        adjusted_info_value = current_info_value
-        return adjusted_info_value
-
-    # Ignore nodes not in GDB
-    else:
-        return current_info_value
-
-
 def make_dict_from_csv(csv_file_path, id_is_tline=False):
     ''' Read a CSV and construct a dictionary whose keys are the first value in
         each row and whose values are a dictionary of all row values stored by
@@ -169,7 +220,7 @@ def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
 tline_gdb_dict = TMM.make_attribute_dict(tline_table, 'TLINE_ID', TMM.tline_fields)
 node_gdb_dict = TMM.make_attribute_dict(node_table, 'NODE_ID', TMM.node_fields)
 
-easeb_csv_dict, easeb_csv_fields = make_dict_from_csv(boarding_ease_csv_in, id_is_tline=True)
+tline_csv_dict, tline_csv_fields = make_dict_from_csv(tline_attr_csv_in, id_is_tline=True)
 bus_csv_dict, bus_csv_fields = make_dict_from_csv(bus_node_attr_csv_in)
 rail_csv_dict, rail_csv_fields = make_dict_from_csv(rail_node_attr_csv_in)
 
@@ -185,10 +236,13 @@ for node_id in rail_csv_dict.keys():
     adjust_type_value(node_id, node_gdb_dict, rail_csv_dict, '@rstyp')
     adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
 
+for tline_id in tline_csv_dict.keys():
+    adjust_easeb_value(tline_id, tline_gdb_dict, tline_csv_dict, '@easeb')
+
 
 # -----------------------------------------------------------------------------
 #  Write output CSVs.
 # -----------------------------------------------------------------------------
-write_dict_to_csv(boarding_ease_csv_out, easeb_csv_dict, easeb_csv_fields, id_is_tline=True)
+write_dict_to_csv(tline_attr_csv_out, tline_csv_dict, tline_csv_fields, id_is_tline=True)
 write_dict_to_csv(bus_node_attr_csv_out, bus_csv_dict, bus_csv_fields)
 write_dict_to_csv(rail_node_attr_csv_out, rail_csv_dict, rail_csv_fields)
