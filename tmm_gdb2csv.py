@@ -45,10 +45,10 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         to provide a boost to the @bstyp/@rstyp extra attributes. '''
     # Get current type value
     current_type_value = int(csv_dict[node_id][type_field])
+    max_type_value = 5  # 5 = 'major terminal'
 
-    # Update type values for nodes in GDB
-    if node_id in node_dict:
-        max_type_value = 5  # 5 = 'major terminal'
+    # Update type values for nodes in GDB that could be improved
+    if node_id in node_dict and current_type_value < max_type value:
 
         # Set field scale factors (1 / maximum field value) & score weights
         field_fwv = {
@@ -81,7 +81,7 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.keys()])
         pct_improvement = node_improvement / max_improvement
 
-        # Set adjusted type value
+        # Calculate adjusted type value
         max_adjustment = max_type_value - current_type_value
         adjustment = round(max_adjustment * pct_improvement)  # The higher the current type, the harder it is to improve
         adjusted_type_value = int(current_type_value + adjustment)
@@ -91,10 +91,11 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         if current_type_value == 1 and node_dict[node_id]['ADD_SHELTER'] > 0:
             adjusted_type_value = max(adjusted_type_value, 2)
 
+        # Set adjusted type value
         csv_dict[node_id][type_field] = str(adjusted_type_value)
         return str(adjusted_type_value)
 
-    # Ignore nodes not in GDB
+    # Ignore nodes not in GDB and type=5 nodes
     else:
         return str(current_type_value)
 
@@ -104,17 +105,14 @@ def adjust_info_value(node_id, node_dict, csv_dict, info_field):
     # Get current info value
     current_info_value = csv_dict[node_id][info_field]
 
-    # Update info values for nodes in GDB
-    if node_id in node_dict:
-        if current_info_value == '2':
-            adjusted_info_value = current_info_value
+    # Update info values for nodes in GDB w/o real-time info already
+    if node_id in node_dict and current_info_value != '2':
+        add_info = node_dict[node_id]['ADD_INFO']
+        add_pa = node_dict[node_id]['ADD_PA']
+        if add_info + add_pa > 0:
+            adjusted_info_value = '2'
         else:
-            add_info = node_dict[node_id]['ADD_INFO']
-            add_pa = node_dict[node_id]['ADD_PA']
-            if add_info + add_pa > 0:
-                adjusted_info_value = '2'
-            else:
-                adjusted_info_value = current_info_value
+            adjusted_info_value = current_info_value
 
         # Set adjusted info value
         csv_dict[node_id][info_field] = adjusted_info_value
