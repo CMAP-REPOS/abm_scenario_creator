@@ -64,9 +64,13 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
             'IMP_WARMING':  {'f': 0.2, 'w': 1.0},
         }
 
-        # If node is already ADA-accessible, remove 'ADD_ADA'
+        # If node is already ADA-accessible, remove 'ADD_ADA' from scoring
         if csv_dict[node_id]['accessible'] == '1':
-            node_dict[node_id]['ADD_ADA'] = 0
+            field_fwv['ADD_ADA']['w'] = 0.0
+
+        # If node is already type=2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
+        if current_type_value >= 2:
+            field_fwv['ADD_WALKWAY']['w'] = 0.0
 
         # Get current field values
         for attr in field_fwv.keys():
@@ -81,6 +85,12 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         max_adjustment = max_type_value - current_type_value
         adjustment = round(max_adjustment * pct_improvement)  # The higher the current type, the harder it is to improve
         adjusted_type_value = int(current_type_value + adjustment)
+
+        # Guarantee special cases:
+        # -- type=1 (pole) nodes with ADD_SHELTER > 0 become at least type=2 (shelter) nodes
+        if current_type_value == 1 and node_dict[node_id]['ADD_SHELTER'] > 0:
+            adjusted_type_value = max(adjusted_type_value, 2)
+
         csv_dict[node_id][type_field] = str(adjusted_type_value)
         return str(adjusted_type_value)
 
