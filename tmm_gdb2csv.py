@@ -42,11 +42,11 @@ tline_prof_csv_out = tline_prof_csv_in.replace(input_dir, output_dir)
 # -----------------------------------------------------------------------------
 #  Define functions.
 # -----------------------------------------------------------------------------
-def adjust_easeb_value(tline_id, tline_dict, csv_dict, easeb_field):
+def adjust_easeb_value(tline_id, tline_dict, csv_dict):
     ''' Create a composite score from a subset of the GDB tline table's fields,
         to provide a boost to the @easeb extra attribute. '''
     # Get current easeb value
-    current_easeb_value = int(csv_dict[tline_id][easeb_field])
+    current_easeb_value = int(csv_dict[tline_id]['@easeb'])
     max_easeb_value = 3  # 3 = 'level w/ platform'
 
     # Update easeb values for tlines in GDB that could be improved
@@ -85,7 +85,7 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict, easeb_field):
         adjusted_easeb_value = int(current_easeb_value + adjustment)
 
         # Set adjusted easeb value
-        csv_dict[tline_id][easeb_field] = str(adjusted_easeb_value)
+        csv_dict[tline_id]['@easeb'] = str(adjusted_easeb_value)
         return str(adjusted_easeb_value)
 
     # Ignore tlines not in GDB and easeb=3 tlines
@@ -115,6 +115,44 @@ def adjust_info_value(node_id, node_dict, csv_dict, info_field):
     # Ignore nodes not in GDB
     else:
         return current_info_value
+
+
+def adjust_prof_values(tline_id, tline_dict, csv_dict):
+    ''' Check existing productivity bonus values and update if appropriate. '''
+    # Get current prof values
+    current_prof1_value = float(csv_dict[tline_id]['@prof1'])
+    current_prof2_value = float(csv_dict[tline_id]['@prof2'])
+    current_prof3_value = float(csv_dict[tline_id]['@prof3'])
+    current_prof_values = (str(current_prof1_value), str(current_prof2_value), str(current_prof3_value))
+
+    # Update prof values for tlines in GDB
+    if tline_id in tline_dict:
+
+        # Set field scale factors (1 / maximum field value) & bonus weights
+        field_fwv = {
+            'ADD_WIFI':  {'f': 1.0, 'w': 0.05},
+            'IMP_SEATS': {'f': 0.2, 'w': 0.05},
+        }
+
+        # Get current field values
+        for attr in field_fwv.keys():
+            field_fwv[attr]['v'] = int(tline_dict[tline_id][attr])
+
+        # Calculate productivity bonuses
+        wifi_bonus = field_fwv['ADD_WIFI']['v'] * field_fwv['ADD_WIFI']['f'] * field_fwv['ADD_WIFI']['w']
+        seat_bonus = field_fwv['IMP_SEATS']['v'] * field_fwv['IMP_SEATS']['f'] * field_fwv['IMP_SEATS']['w']
+        productivity_bonus = wifi_bonus + seat_bonus
+
+        adjusted_prof1_value = current_prof1_value - productivity_bonus
+        adjusted_prof2_value = current_prof2_value - productivity_bonus
+        adjusted_prof3_value = current_prof3_value - productivity_bonus
+        adjusted_prof_values = (str(adjusted_prof1_value), str(adjusted_prof2_value), str(adjusted_prof3_value))
+
+        return adjusted_prof_values
+
+    # Ignore tlines not in GDB
+    else:
+        return str(current_prof_values)
 
 
 def adjust_type_value(node_id, node_dict, csv_dict, type_field):
@@ -245,7 +283,10 @@ for node_id in rail_csv_dict.keys():
     adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
 
 for tline_id in easeb_csv_dict.keys():
-    adjust_easeb_value(tline_id, tline_gdb_dict, easeb_csv_dict, '@easeb')
+    adjust_easeb_value(tline_id, tline_gdb_dict, easeb_csv_dict)
+
+for tline_id in prof_csv_dict.keys():
+    adjust_prof_values(tline_id, tline_gdb_dict, prof_csv_dict)
 
 
 # -----------------------------------------------------------------------------
