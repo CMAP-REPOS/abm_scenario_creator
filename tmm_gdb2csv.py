@@ -28,13 +28,15 @@ tod_periods = range(1, 9)  # 1-8
 tline_table = os.path.join(TMM.gdb, 'extra_attr_tlines')
 node_table = os.path.join(TMM.gdb, 'extra_attr_nodes')
 
-tline_attr_csv_in = os.path.join(input_dir, 'boarding_ease_by_line_id.csv')
 bus_node_attr_csv_in = os.path.join(input_dir, 'bus_node_extra_attributes.csv')
 rail_node_attr_csv_in = os.path.join(input_dir, 'rail_node_extra_attributes.csv')
+tline_easeb_csv_in = os.path.join(input_dir, 'boarding_ease_by_line_id.csv')
+tline_prof_csv_in = os.path.join(input_dir, 'productivity_bonus_by_line_id.csv')
 
-tline_attr_csv_out = tline_attr_csv_in.replace(input_dir, output_dir)
 bus_node_attr_csv_out = bus_node_attr_csv_in.replace(input_dir, output_dir)
 rail_node_attr_csv_out = rail_node_attr_csv_in.replace(input_dir, output_dir)
+tline_easeb_csv_out = tline_easeb_csv_in.replace(input_dir, output_dir)
+tline_prof_csv_out = tline_prof_csv_in.replace(input_dir, output_dir)
 
 
 # -----------------------------------------------------------------------------
@@ -175,6 +177,19 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         return str(current_type_value)
 
 
+def sort_tline(key):
+    ''' Sort-key function to order TLINE_IDs by Metra, CTA rail, buses. '''
+    # Metra (mode m)
+    if key.startswith('m'):
+        return '1{0}'.format(key)
+    # CTA Rail (mode c)
+    elif key.startswith('c'):
+        return '2{0}'.format(key)
+    # Buses (modes b, e, l, p, q)
+    else:
+        return '3{0}'.format(key)
+
+
 def make_dict_from_csv(csv_file_path, id_is_tline=False):
     ''' Read a CSV and construct a dictionary whose keys are the first value in
         each row and whose values are a dictionary of all row values stored by
@@ -198,14 +213,6 @@ def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
         dict_writer = csv.DictWriter(attr_csv, csv_fields)
         dict_writer.writeheader()
         if id_is_tline:
-            def sort_tline(key):
-                ''' Order TLINE_IDs by Metra, CTA Rail, then buses. '''
-                if key.startswith('m'):         # Metra (m)
-                    return '1{0}'.format(key)
-                elif key.startswith('c'):       # CTA Rail (c)
-                    return '2{0}'.format(key)
-                else:                           # Buses (b, e, l, p, q)
-                    return '3{0}'.format(key)
             sorted_keys = sorted(csv_dict.keys(), key=sort_tline)
         else:
             sorted_keys = sorted(csv_dict.keys())
@@ -220,9 +227,10 @@ def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
 tline_gdb_dict = TMM.make_attribute_dict(tline_table, 'TLINE_ID', TMM.tline_fields)
 node_gdb_dict = TMM.make_attribute_dict(node_table, 'NODE_ID', TMM.node_fields)
 
-tline_csv_dict, tline_csv_fields = make_dict_from_csv(tline_attr_csv_in, id_is_tline=True)
 bus_csv_dict, bus_csv_fields = make_dict_from_csv(bus_node_attr_csv_in)
 rail_csv_dict, rail_csv_fields = make_dict_from_csv(rail_node_attr_csv_in)
+easeb_csv_dict, easeb_csv_fields = make_dict_from_csv(tline_easeb_csv_in, id_is_tline=True)
+prof_csv_dict, prof_csv_fields = make_dict_from_csv(tline_prof_csv_in, id_is_tline=True)
 
 
 # -----------------------------------------------------------------------------
@@ -236,13 +244,14 @@ for node_id in rail_csv_dict.keys():
     adjust_type_value(node_id, node_gdb_dict, rail_csv_dict, '@rstyp')
     adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
 
-for tline_id in tline_csv_dict.keys():
-    adjust_easeb_value(tline_id, tline_gdb_dict, tline_csv_dict, '@easeb')
+for tline_id in easeb_csv_dict.keys():
+    adjust_easeb_value(tline_id, tline_gdb_dict, easeb_csv_dict, '@easeb')
 
 
 # -----------------------------------------------------------------------------
 #  Write output CSVs.
 # -----------------------------------------------------------------------------
-write_dict_to_csv(tline_attr_csv_out, tline_csv_dict, tline_csv_fields, id_is_tline=True)
 write_dict_to_csv(bus_node_attr_csv_out, bus_csv_dict, bus_csv_fields)
 write_dict_to_csv(rail_node_attr_csv_out, rail_csv_dict, rail_csv_fields)
+write_dict_to_csv(tline_easeb_csv_out, easeb_csv_dict, easeb_csv_fields, id_is_tline=True)
+write_dict_to_csv(tline_prof_csv_out, prof_csv_dict, prof_csv_fields, id_is_tline=True)
