@@ -38,35 +38,9 @@ rail_node_attr_csv_out = rail_node_attr_csv_in.replace(input_dir, output_dir)
 
 
 # -----------------------------------------------------------------------------
-#  Load input tables into Python objects.
+#  Define functions.
 # -----------------------------------------------------------------------------
-tline_dict = TMM.make_attribute_dict(tline_table, 'TLINE_ID', TMM.tline_fields)
-node_dict = TMM.make_attribute_dict(node_table, 'NODE_ID', TMM.node_fields)
-
-def make_dict_from_csv(csv_file_path, id_is_tline=False):
-    ''' Read a CSV and construct a dictionary whose keys are the first value in
-        each row and whose values are a dictionary of all row values stored by
-        fieldname keys. Also returns a list of CSV's fieldnames, in order. '''
-    csv_dict = {}
-    csv_fields = []
-    with open(csv_file_path, 'r') as attr_csv:
-        dict_reader = csv.DictReader(attr_csv)
-        csv_fields.extend(dict_reader.fieldnames)
-        id_field = csv_fields[0]
-        for row_dict in dict_reader:
-            dict_id = row_dict[id_field] if id_is_tline else int(row_dict[id_field])
-            csv_dict[dict_id] = row_dict.copy()
-    return csv_dict, csv_fields
-
-easeb_csv_dict, easeb_csv_fields = make_dict_from_csv(boarding_ease_csv_in, id_is_tline=True)
-bus_csv_dict, bus_csv_fields = make_dict_from_csv(bus_node_attr_csv_in)
-rail_csv_dict, rail_csv_fields = make_dict_from_csv(rail_node_attr_csv_in)
-
-
-# -----------------------------------------------------------------------------
-#  Define scoring functions.
-# -----------------------------------------------------------------------------
-def adjust_type_value(node_id, csv_dict, type_field):
+def adjust_type_value(node_id, node_dict, csv_dict, type_field):
     ''' Create a composite score from a subset of the GDB node table's fields,
         to provide a boost to the @bstyp/@rstyp extra attributes. '''
     # Get current type value
@@ -115,7 +89,7 @@ def adjust_type_value(node_id, csv_dict, type_field):
         return str(current_type_value)
 
 
-def adjust_info_value(node_id, csv_dict, info_field):
+def adjust_info_value(node_id, node_dict, csv_dict, info_field):
     ''' Check existing real-time info value and update if appropriate. '''
     # Get current info value
     current_info_value = csv_dict[node_id][info_field]
@@ -142,22 +116,23 @@ def adjust_info_value(node_id, csv_dict, info_field):
         return current_info_value
 
 
-# -----------------------------------------------------------------------------
-#  Update dictionary values to reflect GDB scenario.
-# -----------------------------------------------------------------------------
-for node_id in bus_csv_dict.keys():
-    adjust_type_value(node_id, bus_csv_dict, '@bstyp')
-    adjust_info_value(node_id, bus_csv_dict, '@bsinf')
+def make_dict_from_csv(csv_file_path, id_is_tline=False):
+    ''' Read a CSV and construct a dictionary whose keys are the first value in
+        each row and whose values are a dictionary of all row values stored by
+        fieldname keys. Also returns a list of CSV's fieldnames, in order. '''
+    csv_dict = {}
+    csv_fields = []
+    with open(csv_file_path, 'r') as attr_csv:
+        dict_reader = csv.DictReader(attr_csv)
+        csv_fields.extend(dict_reader.fieldnames)
+        id_field = csv_fields[0]
+        for row_dict in dict_reader:
+            dict_id = row_dict[id_field] if id_is_tline else int(row_dict[id_field])
+            csv_dict[dict_id] = row_dict.copy()
+    return csv_dict, csv_fields
 
-for node_id in rail_csv_dict.keys():
-    adjust_type_value(node_id, rail_csv_dict, '@rstyp')
-    adjust_info_value(node_id, rail_csv_dict, '@rsinf')
 
-
-# -----------------------------------------------------------------------------
-#  Write output CSVs.
-# -----------------------------------------------------------------------------
-def write_csv_from_dict(csv_file, csv_dict, csv_fields, id_is_tline=False):
+def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
     ''' Write one of the modified CSV dictionaries and write out an updated
         CSV file with its values. '''
     with open(csv_file, 'wb') as attr_csv:
@@ -179,6 +154,33 @@ def write_csv_from_dict(csv_file, csv_dict, csv_fields, id_is_tline=False):
             dict_writer.writerow(csv_dict[dict_id])
     return csv_file
 
-write_csv_from_dict(boarding_ease_csv_out, easeb_csv_dict, easeb_csv_fields, id_is_tline=True)
-write_csv_from_dict(bus_node_attr_csv_out, bus_csv_dict, bus_csv_fields)
-write_csv_from_dict(rail_node_attr_csv_out, rail_csv_dict, rail_csv_fields)
+
+# -----------------------------------------------------------------------------
+#  Load input GDB tables & CSVs into dictionaries.
+# -----------------------------------------------------------------------------
+tline_gdb_dict = TMM.make_attribute_dict(tline_table, 'TLINE_ID', TMM.tline_fields)
+node_gdb_dict = TMM.make_attribute_dict(node_table, 'NODE_ID', TMM.node_fields)
+
+easeb_csv_dict, easeb_csv_fields = make_dict_from_csv(boarding_ease_csv_in, id_is_tline=True)
+bus_csv_dict, bus_csv_fields = make_dict_from_csv(bus_node_attr_csv_in)
+rail_csv_dict, rail_csv_fields = make_dict_from_csv(rail_node_attr_csv_in)
+
+
+# -----------------------------------------------------------------------------
+#  Update dictionary values to reflect GDB scenario.
+# -----------------------------------------------------------------------------
+for node_id in bus_csv_dict.keys():
+    adjust_type_value(node_id, node_gdb_dict, bus_csv_dict, '@bstyp')
+    adjust_info_value(node_id, node_gdb_dict, bus_csv_dict, '@bsinf')
+
+for node_id in rail_csv_dict.keys():
+    adjust_type_value(node_id, node_gdb_dict, rail_csv_dict, '@rstyp')
+    adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
+
+
+# -----------------------------------------------------------------------------
+#  Write output CSVs.
+# -----------------------------------------------------------------------------
+write_dict_to_csv(boarding_ease_csv_out, easeb_csv_dict, easeb_csv_fields, id_is_tline=True)
+write_dict_to_csv(bus_node_attr_csv_out, bus_csv_dict, bus_csv_fields)
+write_dict_to_csv(rail_node_attr_csv_out, rail_csv_dict, rail_csv_fields)
