@@ -2,7 +2,7 @@
 '''
     tmm_gdb2csv.py
     Author: npeterson
-    Revised: 3/21/2014
+    Revised: 3/24/2014
     ---------------------------------------------------------------------------
     This script will use the extra attribute tables in TMM_GIS.gdb to create
     updated versions of the batchin CSVs used to construct the transit network
@@ -20,7 +20,7 @@ import TMM
 #  Set parameters.
 # -----------------------------------------------------------------------------
 input_dir = TMM.input_dir
-output_dir = TMM.output_dir
+output_dir = TMM.ensure_dir(TMM.output_dir)
 
 scen = 100  # Year 2010
 tod_periods = range(1, 9)  # 1-8
@@ -215,19 +215,6 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         return str(current_type_value)
 
 
-def sort_tline(key):
-    ''' Sort-key function to order TLINE_IDs by Metra, CTA rail, buses. '''
-    # Metra (mode m)
-    if key.startswith('m'):
-        return '1{0}'.format(key)
-    # CTA Rail (mode c)
-    elif key.startswith('c'):
-        return '2{0}'.format(key)
-    # Buses (modes b, e, l, p, q)
-    else:
-        return '3{0}'.format(key)
-
-
 def make_dict_from_csv(csv_file_path, id_is_tline=False):
     ''' Read a CSV and construct a dictionary whose keys are the first value in
         each row and whose values are a dictionary of all row values stored by
@@ -242,6 +229,19 @@ def make_dict_from_csv(csv_file_path, id_is_tline=False):
             dict_id = row_dict[id_field] if id_is_tline else int(row_dict[id_field])
             csv_dict[dict_id] = row_dict.copy()
     return csv_dict, csv_fields
+
+
+def sort_tline(key):
+    ''' Sort-key function to order TLINE_IDs by Metra, CTA rail, buses. '''
+    # Metra (mode m)
+    if key.startswith('m'):
+        return '1{0}'.format(key)
+    # CTA Rail (mode c)
+    elif key.startswith('c'):
+        return '2{0}'.format(key)
+    # Buses (modes b, e, l, p, q)
+    else:
+        return '3{0}'.format(key)
 
 
 def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):

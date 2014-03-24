@@ -2,7 +2,7 @@
 '''
     TMM.py
     Author: npeterson
-    Revised: 3/19/2014
+    Revised: 3/24/2014
     ---------------------------------------------------------------------------
     This module stores information used by other TMM scripts.
 
@@ -82,6 +82,14 @@ def die(error_message):
     arcpy.AddError('\n' + error_message + '\n')
     sys.exit()
     return None
+
+
+def ensure_dir(directory):
+    ''' Checks for the existence of a directory, creating it if it doesn't
+        exist yet. '''
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    return directory
 
 
 def make_attribute_dict(fc, key_field, attr_list=['*']):
