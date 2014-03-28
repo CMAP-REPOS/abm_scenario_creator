@@ -2,7 +2,7 @@
 '''
     tmm_gdb2csv.py
     Author: npeterson
-    Revised: 3/24/2014
+    Revised: 3/28/2014
     ---------------------------------------------------------------------------
     This script will use the extra attribute tables in TMM_GIS.gdb to create
     updated versions of the batchin CSVs used to construct the transit network
@@ -52,19 +52,16 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
     # Update easeb values for tlines in GDB that could be improved
     if tline_id in tline_dict and current_easeb_value < max_easeb_value:
 
+        ## Guarantee improvement when 'LOWER_FLOOR' > current_easeb_value
+        #lower_floors = int(tline_dict[tline_id]['LOWER_FLOOR'])
+        #current_easeb_value = max(current_easeb_value, lower_floors)
+
         # Set field scale factors (1 / maximum field value) & score weights
         field_fwv = {
-            'ADD_STAND_CAP': {'f': 0.2, 'w': 1.0},
-            'NEW_VEHICLES':  {'f': 0.2, 'w': 1.0},
+            'ADD_STAND_CAP': {'f': 1.0/5, 'w': 1.0},
+            'LOWER_FLOOR':   {'f': 1.0/3, 'w': 1.0},
+            'NEW_VEHICLES':  {'f': 1.0/5, 'w': 1.0},
         }
-
-        # If node is already ADA-accessible, remove 'ADD_ADA' from scoring
-        if csv_dict[tline_id]['accessible'] == '1':
-            field_fwv['ADD_ADA']['w'] = 0.0
-
-        # If node is already @easeb=2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
-        if current_easeb_value >= 2:
-            field_fwv['ADD_WALKWAY']['w'] = 0.0
 
         # Get current field values
         for attr in field_fwv.keys():
@@ -74,10 +71,6 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
         node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
         max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.keys()])
         pct_improvement = node_improvement / max_improvement
-
-        # Guarantee improvement when 'LOWER_FLOOR' > current_easeb_value
-        lower_floors = int(tline_dict[tline_id]['LOWER_FLOOR'])
-        current_easeb_value = max(current_easeb_value, lower_floors)
 
         # Calculate adjusted easeb value
         max_adjustment = max_easeb_value - current_easeb_value
@@ -130,8 +123,8 @@ def adjust_prof_values(tline_id, tline_dict, csv_dict):
 
         # Set field scale factors (1 / maximum field value) & bonus weights
         field_fwv = {
-            'ADD_WIFI':  {'f': 1.0, 'w': 0.05},
-            'IMP_SEATS': {'f': 0.2, 'w': 0.05},
+            'ADD_WIFI':  {'f': 1.0/1, 'w': 0.05},
+            'IMP_SEATS': {'f': 1.0/5, 'w': 0.05},
         }
 
         # Get current field values
@@ -144,9 +137,9 @@ def adjust_prof_values(tline_id, tline_dict, csv_dict):
         productivity_bonus = wifi_bonus + seat_bonus
 
         # Set adjusted @prof1-3 values
-        adjusted_prof1_value = current_prof1_value - productivity_bonus
-        adjusted_prof2_value = current_prof2_value - productivity_bonus
-        adjusted_prof3_value = current_prof3_value - productivity_bonus
+        adjusted_prof1_value = round(current_prof1_value - productivity_bonus, 2)
+        adjusted_prof2_value = round(current_prof2_value - productivity_bonus, 2)
+        adjusted_prof3_value = round(current_prof3_value - productivity_bonus, 2)
         adjusted_prof_values = (str(adjusted_prof1_value), str(adjusted_prof2_value), str(adjusted_prof3_value))
 
         return adjusted_prof_values
@@ -166,27 +159,31 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
     # Update station/stop type (@bstyp/@rstyp) values for nodes in GDB that could be improved
     if node_id in node_dict and current_type_value < max_type_value:
 
+        ## Guarantee type 1 (pole) nodes with ADD_SHELTER > 0 become at least type 2 (shelter) nodes
+        #if node_dict[node_id]['ADD_SHELTER'] > 0:
+        #    adjusted_type_value = max(current_type_value, 2)
+
         # Set field scale factors (1 / maximum field value) & score weights
         field_fwv = {
-            'ADD_ADA':      {'f': 1.0, 'w': 1.0},
-            'ADD_RETAIL':   {'f': 1.0, 'w': 1.0},
-            'ADD_SEATS':    {'f': 0.2, 'w': 1.0},
-            'ADD_SEC_CAM':  {'f': 0.2, 'w': 1.0},
-            'ADD_SHELTER':  {'f': 0.2, 'w': 1.0},
-            'ADD_WALKWAY':  {'f': 1.0, 'w': 1.0},
-            'ENLARGE_AREA': {'f': 0.2, 'w': 1.0},
-            'FACELIFT':     {'f': 0.2, 'w': 1.0},
-            'IMP_LIGHTING': {'f': 0.2, 'w': 1.0},
-            'IMP_WARMING':  {'f': 0.2, 'w': 1.0},
+            'ADD_ADA':      {'f': 1.0/1, 'w': 1.0},
+            'ADD_RETAIL':   {'f': 1.0/1, 'w': 1.0},
+            'ADD_SEATS':    {'f': 1.0/5, 'w': 1.0},
+            'ADD_SEC_CAM':  {'f': 1.0/5, 'w': 1.0},
+            'ADD_SHELTER':  {'f': 1.0/5, 'w': 1.0},
+            'ADD_WALKWAY':  {'f': 1.0/1, 'w': 1.0},
+            'ENLARGE_AREA': {'f': 1.0/5, 'w': 1.0},
+            'FACELIFT':     {'f': 1.0/5, 'w': 1.0},
+            'IMP_LIGHTING': {'f': 1.0/5, 'w': 1.0},
+            'IMP_WARMING':  {'f': 1.0/5, 'w': 1.0},
         }
 
-        # If node is already ADA-accessible, remove 'ADD_ADA' from scoring
-        if csv_dict[node_id]['accessible'] == '1':
-            field_fwv['ADD_ADA']['w'] = 0.0
-
-        # If node is already type 2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
-        if current_type_value >= 2:
-            field_fwv['ADD_WALKWAY']['w'] = 0.0
+        ## If node is already ADA-accessible, remove 'ADD_ADA' from scoring
+        #if csv_dict[node_id]['accessible'] == '1':
+        #    field_fwv['ADD_ADA']['w'] = 0.0
+        #
+        ## If node is already type 2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
+        #if current_type_value >= 2:
+        #    field_fwv['ADD_WALKWAY']['w'] = 0.0
 
         # Get current field values
         for attr in field_fwv.keys():
@@ -199,13 +196,8 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
 
         # Calculate adjusted type value
         max_adjustment = max_type_value - current_type_value
-        adjustment = round(max_adjustment * pct_improvement)  # The higher the current type, the harder it is to improve
-        adjusted_type_value = int(current_type_value + adjustment)
-
-        # Guarantee special cases:
-        # -- type 1 (pole) nodes with ADD_SHELTER > 0 become at least type 2 (shelter) nodes
-        if current_type_value == 1 and node_dict[node_id]['ADD_SHELTER'] > 0:
-            adjusted_type_value = max(adjusted_type_value, 2)
+        adjustment = max_adjustment * pct_improvement  # The higher the current type, the harder it is to improve
+        adjusted_type_value = round(current_type_value + adjustment, 2)  # NOT AN INTEGER
 
         # Set adjusted type value
         csv_dict[node_id][type_field] = str(adjusted_type_value)
