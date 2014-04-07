@@ -2,7 +2,7 @@
 '''
     tmm_gdb2csv.py
     Author: npeterson
-    Revised: 3/28/2014
+    Revised: 4/7/2014
     ---------------------------------------------------------------------------
     This script will use the extra attribute tables in TMM_GIS.gdb to create
     updated versions of the batchin CSVs used to construct the transit network
@@ -47,14 +47,10 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
         to provide a boost to the @easeb extra attribute. '''
     # Get current easeb value
     current_easeb_value = int(csv_dict[tline_id]['@easeb'])
-    max_easeb_value = 3  # 3 = 'level w/ platform'
+    max_easeb_value = 4  # 3 = 'level w/ platform'
 
     # Update easeb values for tlines in GDB that could be improved
     if tline_id in tline_dict and current_easeb_value < max_easeb_value:
-
-        ## Guarantee improvement when 'LOWER_FLOOR' > current_easeb_value
-        #lower_floors = int(tline_dict[tline_id]['LOWER_FLOOR'])
-        #current_easeb_value = max(current_easeb_value, lower_floors)
 
         # Set field scale factors (1 / maximum field value) & score weights
         field_fwv = {
@@ -77,11 +73,15 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
         adjustment = round(max_adjustment * pct_improvement)  # The higher the current @easeb, the harder it is to improve
         adjusted_easeb_value = int(current_easeb_value + adjustment)
 
+        # Force an increase of at least 1 if any improvements were made
+        if node_improvement > 0:
+            adjusted_easeb_value = max(adjusted_easeb_value, current_easeb_value + 1)
+
         # Set adjusted easeb value
         csv_dict[tline_id]['@easeb'] = str(adjusted_easeb_value)
         return str(adjusted_easeb_value)
 
-    # Ignore tlines not in GDB and @easeb=3 tlines
+    # Ignore tlines not in GDB and maxed-out-@easeb tlines
     else:
         return str(current_easeb_value)
 
@@ -140,6 +140,9 @@ def adjust_prof_values(tline_id, tline_dict, csv_dict):
         adjusted_prof1_value = round(current_prof1_value - productivity_bonus, 2)
         adjusted_prof2_value = round(current_prof2_value - productivity_bonus, 2)
         adjusted_prof3_value = round(current_prof3_value - productivity_bonus, 2)
+        csv_dict[tline_id]['@prof1'] = str(adjusted_prof1_value)
+        csv_dict[tline_id]['@prof2'] = str(adjusted_prof2_value)
+        csv_dict[tline_id]['@prof3'] = str(adjusted_prof3_value)
         adjusted_prof_values = (str(adjusted_prof1_value), str(adjusted_prof2_value), str(adjusted_prof3_value))
 
         return adjusted_prof_values
@@ -153,15 +156,11 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
     ''' Create a composite score from a subset of the GDB node table's fields,
         to provide a boost to the @bstyp/@rstyp extra attributes. '''
     # Get current type value
-    current_type_value = int(csv_dict[node_id][type_field])
-    max_type_value = 5  # 5 = 'major terminal'
+    current_type_value = float(csv_dict[node_id][type_field])
+    max_type_value = 6.0  # 5 = 'major terminal'
 
     # Update station/stop type (@bstyp/@rstyp) values for nodes in GDB that could be improved
     if node_id in node_dict and current_type_value < max_type_value:
-
-        ## Guarantee type 1 (pole) nodes with ADD_SHELTER > 0 become at least type 2 (shelter) nodes
-        #if node_dict[node_id]['ADD_SHELTER'] > 0:
-        #    adjusted_type_value = max(current_type_value, 2)
 
         # Set field scale factors (1 / maximum field value) & score weights
         field_fwv = {
@@ -176,14 +175,6 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
             'IMP_LIGHTING': {'f': 1.0/5, 'w': 1.0},
             'IMP_WARMING':  {'f': 1.0/5, 'w': 1.0},
         }
-
-        ## If node is already ADA-accessible, remove 'ADD_ADA' from scoring
-        #if csv_dict[node_id]['accessible'] == '1':
-        #    field_fwv['ADD_ADA']['w'] = 0.0
-        #
-        ## If node is already type 2 (shelter) or better, assume walkways present and remove 'ADD_WALKWAY' from scoring
-        #if current_type_value >= 2:
-        #    field_fwv['ADD_WALKWAY']['w'] = 0.0
 
         # Get current field values
         for attr in field_fwv.keys():
@@ -203,7 +194,7 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         csv_dict[node_id][type_field] = str(adjusted_type_value)
         return str(adjusted_type_value)
 
-    # Ignore nodes not in GDB and type 5 (major terminal) nodes
+    # Ignore nodes not in GDB and maxed-out-@bstyp/@rstyp nodes
     else:
         return str(current_type_value)
 
@@ -224,29 +215,13 @@ def make_dict_from_csv(csv_file_path, id_is_tline=False):
     return csv_dict, csv_fields
 
 
-def sort_tline(key):
-    ''' Sort-key function to order TLINE_IDs by Metra, CTA rail, buses. '''
-    # Metra (mode m)
-    if key.startswith('m'):
-        return '1{0}'.format(key)
-    # CTA Rail (mode c)
-    elif key.startswith('c'):
-        return '2{0}'.format(key)
-    # Buses (modes b, e, l, p, q)
-    else:
-        return '3{0}'.format(key)
-
-
 def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
     ''' Write one of the modified CSV dictionaries and write out an updated
         CSV file with its values. '''
     with open(csv_file, 'wb') as attr_csv:
         dict_writer = csv.DictWriter(attr_csv, csv_fields)
         dict_writer.writeheader()
-        if id_is_tline:
-            sorted_keys = sorted(csv_dict.keys(), key=sort_tline)
-        else:
-            sorted_keys = sorted(csv_dict.keys())
+        sorted_keys = sorted(csv_dict.keys())
         for dict_id in sorted_keys:
             dict_writer.writerow(csv_dict[dict_id])
     return csv_file
