@@ -46,8 +46,8 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
     ''' Create a composite score from a subset of the GDB tline table's fields,
         to provide a boost to the @easeb extra attribute. '''
     # Get current easeb value
-    current_easeb_value = int(csv_dict[tline_id]['@easeb'])
-    max_easeb_value = 4  # 3 = 'level w/ platform'
+    current_easeb_value = float(csv_dict[tline_id]['@easeb'])
+    max_easeb_value = 4.0  # 3 = 'level w/ platform'
 
     # Update easeb values for tlines in GDB that could be improved
     if tline_id in tline_dict and current_easeb_value < max_easeb_value:
@@ -61,7 +61,7 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
 
         # Get current field values
         for attr in field_fwv.keys():
-            field_fwv[attr]['v'] = int(tline_dict[tline_id][attr])
+            field_fwv[attr]['v'] = float(tline_dict[tline_id][attr])
 
         # Calculate node's improvement score (0-2)
         node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
@@ -70,12 +70,8 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
 
         # Calculate adjusted easeb value
         max_adjustment = max_easeb_value - current_easeb_value
-        adjustment = round(max_adjustment * pct_improvement)  # The higher the current @easeb, the harder it is to improve
-        adjusted_easeb_value = int(current_easeb_value + adjustment)
-
-        # Force an increase of at least 1 if any improvements were made
-        if node_improvement > 0:
-            adjusted_easeb_value = max(adjusted_easeb_value, current_easeb_value + 1)
+        adjustment = max_adjustment * pct_improvement  # The higher the current @easeb, the harder it is to improve
+        adjusted_easeb_value = round(current_easeb_value + adjustment, 2)  # NOT AN INTEGER
 
         # Set adjusted easeb value
         csv_dict[tline_id]['@easeb'] = str(adjusted_easeb_value)
@@ -178,7 +174,7 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
 
         # Get current field values
         for attr in field_fwv.keys():
-            field_fwv[attr]['v'] = int(node_dict[node_id][attr])
+            field_fwv[attr]['v'] = float(node_dict[node_id][attr])
 
         # Calculate node's improvement score (0-4)
         node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
