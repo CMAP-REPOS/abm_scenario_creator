@@ -85,16 +85,17 @@ q
 ~+|1|y|@hdwef|n|hdwy*@hfrac||all|all|4
 q
 / CALCULATE BASE WAIT CONVENIENCE FACTOR BY STATION TYPE AND INFORMATION
-~r11=2.50 /1=Pole
-~r12=2.25 /2=Shelter
-~r13=2.00 /3=Plaza
-~r14=1.75 /4=Station 
+~#~r11=2.50 /1=Pole
+~#~r12=2.25 /2=Shelter
+~#~r13=2.00 /3=Plaza
+~#~r14=1.75 /4=Station 
 ~r15=0.90 /Real-time information convenience discount
 2.41
-~+|1|y|@wconv|n|%r11%||all|4
-~+|1|y|@wconv|n|%r12%||@bstyp=2|@rstyp=2||4
-~+|1|y|@wconv|n|%r13%||@bstyp=3|@rstyp=3||4
-~+|1|y|@wconv|n|%r14%||@bstyp=4,5|@rstyp=4,5||4
+~#~+|1|y|@wconv|n|%r11%||all|4
+~#~+|1|y|@wconv|n|%r12%||@bstyp=2|@rstyp=2||4
+~#~+|1|y|@wconv|n|%r13%||@bstyp=3|@rstyp=3||4
+~#~+|1|y|@wconv|n|%r14%||@bstyp=4,5|@rstyp=4,5||4
+~+|1|y|@wconv|n|(2.75-0.25*@bstyp).max.(2.75-0.25*@rstyp).max.1.75||all||4
 ~+|1|y|@wconv|n|@wconv*%r15%||@bsinf=2|@rsinf=2||4
 ~+|1|y|@wconf|n|@wconv+@wcona||all|4
 q
@@ -142,24 +143,24 @@ q
 ~+|1|y|@ivtpf|n|@ivtpf+0.00||mod=C  ||@zone=1,80|or @zonej=1,80||4
 ~+|1|y|@ivtpf|n|@ivtpf+0.00||mod=M  ||@zone=1,80|or @zonej=1,80||4
 q
-/~/ Productivity bonus - IVT weight reduction for seating passenger by user class and mode
-/2.41
-/~/ - User class 1
-/~+|1|y|@prof1|n| 0.00||mod=BPL||all|4
-/~+|1|y|@prof1|n|-0.05||mod=EQ ||all|4
-/~+|1|y|@prof1|n| 0.00||mod=C  ||all|4
-/~+|1|y|@prof1|n|-0.05||mod=M  ||all|4
-/~/ - User class 2
-/~+|1|y|@prof2|n| 0.00||mod=BPL||all|4
-/~+|1|y|@prof2|n|-0.10||mod=EQ ||all|4
-/~+|1|y|@prof2|n| 0.00||mod=C  ||all|4
-/~+|1|y|@prof2|n|-0.10||mod=M  ||all|4
-/~/ - User class 3
-/~+|1|y|@prof3|n| 0.00||mod=BPL||all|4
-/~+|1|y|@prof3|n|-0.10||mod=EQ ||all|4
-/~+|1|y|@prof3|n| 0.00||mod=C  ||all|4
-/~+|1|y|@prof3|n|-0.25||mod=M  ||all|4
-/q
+~#/~/ Productivity bonus - IVT weight reduction for seating passenger by user class and mode
+~#/2.41
+~#/~/ - User class 1
+~#~+|1|y|@prof1|n| 0.00||mod=BPL||all|4
+~#~+|1|y|@prof1|n|-0.05||mod=EQ ||all|4
+~#~+|1|y|@prof1|n| 0.00||mod=C  ||all|4
+~#~+|1|y|@prof1|n|-0.05||mod=M  ||all|4
+~#/~/ - User class 2
+~#~+|1|y|@prof2|n| 0.00||mod=BPL||all|4
+~#~+|1|y|@prof2|n|-0.10||mod=EQ ||all|4
+~#~+|1|y|@prof2|n| 0.00||mod=C  ||all|4
+~#~+|1|y|@prof2|n|-0.10||mod=M  ||all|4
+~#/~/ - User class 3
+~#~+|1|y|@prof3|n| 0.00||mod=BPL||all|4
+~#~+|1|y|@prof3|n|-0.10||mod=EQ ||all|4
+~#~+|1|y|@prof3|n| 0.00||mod=C  ||all|4
+~#~+|1|y|@prof3|n|-0.25||mod=M  ||all|4
+~#q
 ~/ Geography impacts on productivity - stop frequency and boarding/alighting passengers
 2.41
 ~+|1|y|@prof3|n|@prof3+0.01||mod=BPL||@zone=1,80|or @zonej=1,80||4
@@ -183,7 +184,7 @@ q
 ~r44= 200	 /CTA TRANSFER DISCOUNT
 ~r45=  25  /Default transfer cost
 2.41
-~+|1|y|ut1|   0||     all| 4
+~+|1|y|ut1|    0||    all| 4
 ~+|1|y|ut1|%r41%||mod=BEC||4
 ~+|1|y|ut1|%r42%||mod=LPQ||4
 ~+|1|y|ut1|%r43%||mod=M  ||4|q
@@ -239,15 +240,16 @@ q
 q
 ~/ STATION CLEANLINESS INDEX 
 ~/ Fixed component by station type (1.00=ideal, 0.00=worst)
-~r81=0.80 /bus stops: pole, shelter
-~r82=0.85 /bus plaza 
-~r83=0.90 /CTA, Metra station
-~r84=0.95 /Metra terminal station
+~#~r81=0.80 /bus stops: pole, shelter
+~#~r82=0.85 /bus plaza 
+~#~r83=0.90 /CTA, Metra station
+~#~r84=0.95 /Metra terminal station
 2.41
-~+|1|y|@clnsf|n|%r81%||all|4
-~+|1|y|@clnsf|n|%r82%||@bstyp=3|@rstyp=3||4
-~+|1|y|@clnsf|n|%r83%||@bstyp=4|@rstyp=4||4
-~+|1|y|@clnsf|n|%r84%||@bstyp=5|@rstyp=5||4
+~#~+|1|y|@clnsf|n|%r81%||all|4
+~#~+|1|y|@clnsf|n|%r82%||@bstyp=3|@rstyp=3||4
+~#~+|1|y|@clnsf|n|%r83%||@bstyp=4|@rstyp=4||4
+~#~+|1|y|@clnsf|n|%r84%||@bstyp=5|@rstyp=5||4
+~+|1|y|@clnsf|n|(0.7+0.05*@bstyp).max.(0.7+0.05*@rstyp).max.0.8||all|4
 q
 ~/ Variable component as multiplier on 10-logged number of passengers 
 ~r85=-0.00 /bus stops: pole, shelter
@@ -259,11 +261,12 @@ q
 ~r90=1.20  /extra wait time weight per deviation from 1.00=ideal
 / Station cleanliness policy impact variable by station type: 1.00=baseline, 0.00=clean completely 
 2.41
-~+|1|y|@clnim|n|1.00||@bstyp=1|@rstyp=1||4
-~+|1|y|@clnim|n|1.00||@bstyp=2|@rstyp=2||4
-~+|1|y|@clnim|n|1.00||@bstyp=3|@rstyp=3||4
-~+|1|y|@clnim|n|1.00||@bstyp=4|@rstyp=4||4
-~+|1|y|@clnim|n|1.00||@bstyp=5|@rstyp=5||4
+~#~+|1|y|@clnim|n|1.00||@bstyp=1|@rstyp=1||4
+~#~+|1|y|@clnim|n|1.00||@bstyp=2|@rstyp=2||4
+~#~+|1|y|@clnim|n|1.00||@bstyp=3|@rstyp=3||4
+~#~+|1|y|@clnim|n|1.00||@bstyp=4|@rstyp=4||4
+~#~+|1|y|@clnim|n|1.00||@bstyp=5|@rstyp=5||4
+~+|1|y|@clnim|n|1.00||!@bstyp=0|!@rstyp=0||4
 q
 ~x=1
 ~:EQUILIBRATION LOOP

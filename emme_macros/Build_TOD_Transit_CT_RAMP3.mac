@@ -260,22 +260,25 @@ q
 /~+|3|@lcaps|n|mode=M||1,2|n|y
 /~+|1|y|@lcapt|n|@lcaps*1.10||mode=M||4
 /q
-/~/ INPUT EASY OF BOARDING CATEGORY
+~#~/ INPUT EASY OF BOARDING CATEGORY
+~#/  1=staircase (worst) is default
+~#/  2=low floor/kneeling
+~#/  3=level w/platform (best)
+~#~<<%t2%\boarding_ease_by_line_id.csv
+~#2.41
+~#~t9=~@
+~#~:BOARDING EASE LOOP
+~#~t9=~@
+~#~?e
+~#~$>EXIT BOARDING EASE LOOP
+~#~+|1|y|@easeb|n|%t9_-4%||%t9_3%_|%t9_3%__|%t9_3%___||4
+~#~$BOARDING EASE LOOP
+~#~:EXIT BOARDING EASE LOOP
+~#q
+~/ INPUT EASE OF BOARDING CATEGORY
 /  1=staircase (worst) is default
 /  2=low floor/kneeling
 /  3=level w/platform (best)
-/~<<%t2%\boarding_ease_by_line_id.csv
-/2.41
-/~t9=~@
-/~:BOARDING EASE LOOP
-/~t9=~@
-/~?e
-/~$>EXIT BOARDING EASE LOOP
-/~+|1|y|@easeb|n|%t9_-4%||%t9_3%_|%t9_3%__|%t9_3%___||4
-/~$BOARDING EASE LOOP
-/~:EXIT BOARDING EASE LOOP
-/q
-~/ INPUT EASE OF BOARDING CATEGORY
 batchin=%t2%\boarding_ease_by_line_id.csv
 2.41
 ~+|3|@easeb|n|all|1,2|n|y
