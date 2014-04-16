@@ -2,7 +2,7 @@
 ~# BUILD_TOD_TRANSIT_CT_RAMP
 ~#   Based on BUILD_TOD_TRANSIT of Craig Heither, last revised 02/13/2012
 ~#   Adjusted for CT-RAMP by Peter Vovsha, last revised 12/15/2012
-~#   Modifications by Noel Peterson for Transit Modernization Model, 04/07/2014
+~#   Modifications by Noel Peterson for Transit Modernization Model, 04/16/2014
 ~#  ************************************************************************************************
 ~#    Macro used to create time-of-day-specific transit network for assignment & skimming
 ~#    Segment variable @hwytm is populated with congested travel time
@@ -260,10 +260,10 @@ q
 /~+|3|@lcaps|n|mode=M||1,2|n|y
 /~+|1|y|@lcapt|n|@lcaps*1.10||mode=M||4
 /q
-~#~/ INPUT EASY OF BOARDING CATEGORY
-~#/  1=staircase (worst) is default
-~#/  2=low floor/kneeling
-~#/  3=level w/platform (best)
+~/ INPUT EASE OF BOARDING CATEGORY
+/  1=staircase (worst) is default
+/  2=low floor/kneeling
+/  3=level w/platform (best)
 ~#~<<%t2%\boarding_ease_by_line_id.csv
 ~#2.41
 ~#~t9=~@
@@ -275,10 +275,6 @@ q
 ~#~$BOARDING EASE LOOP
 ~#~:EXIT BOARDING EASE LOOP
 ~#q
-~/ INPUT EASE OF BOARDING CATEGORY
-/  1=staircase (worst) is default
-/  2=low floor/kneeling
-/  3=level w/platform (best)
 batchin=%t2%\boarding_ease_by_line_id.csv
 2.41
 ~+|3|@easeb|n|all|1,2|n|y
