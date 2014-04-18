@@ -104,8 +104,8 @@ q
 ~#~r22=1.0 /3=bus plaza, 
 ~#~r23=1.5 /4=CTA, Metra station
 ~#~r24=3.5 /5=Metra rail terminal
-~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
-~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
+~#~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
+~#~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
 ~r27=2.5 /boarding time weight (base perception factor)
 2.41
 ~#~+|1|y|@timbo|n|%r21%||all|4
@@ -116,8 +116,7 @@ q
 ~+|1|y|@timbf|n|@timbo||all|4
 ~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
 ~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
-~+|1|y|@easbp|n|%r25%||@easeb=1.00,1.49||4
-~+|1|y|@easbp|n|%r26%||@easeb=1.50,2.49||4
+~+|1|y|@easbp|n|3-@easeb||all||4
 ~+|1|y|@perbo|n|%r27%||all|4
 ~+|1|y|@perbf|n|@perbo+@perba||all|4
 q
