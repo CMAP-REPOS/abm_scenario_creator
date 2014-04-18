@@ -112,7 +112,7 @@ q
 ~#~+|1|y|@timbo|n|%r22%||@bstyp=3|@rstyp=3||4
 ~#~+|1|y|@timbo|n|%r23%||@bstyp=4|@rstyp=4||4
 ~#~+|1|y|@timbo|n|%r24%||@bstyp=5|@rstyp=5||4
-~+|1|y|@timbo|n|((-0.5+(0.5+1.5*(@bstyp>=4))*@bstyp).max.(-0.5+(0.5+1.5*(@rstyp>=4))*@rstyp).max.0.5).min.3.5||all|4
+~+|1|y|@timbo|n|0.5|.max.(0.5*@bstyp+1.5*((@bstyp-4).max.0)-0.5)|.max.(0.5*@rstyp+1.5*((@rstyp-4).max.0)-0.5)|.min.3.5||all|4
 ~+|1|y|@timbf|n|@timbo||all|4
 ~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
 ~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
@@ -1310,7 +1310,7 @@ q
 ~#~+|1|y|@clnsv |n|%r86%*log10(1+@toboa+@toali)||@bstyp=3  |@rstyp=3  ||4
 ~#~+|1|y|@clnsv |n|%r87%*log10(1+@toboa+@toali)||@bstyp=4  |@rstyp=4  ||4
 ~#~+|1|y|@clnsv |n|%r88%*log10(1+@toboa+@toali)||@bstyp=5  |@rstyp=5  ||4
-~+|1|y|@clnsv |n|((-0.01*(@bstyp>=2.5)).min.(-0.01*(@rstyp>=2.5)))*log10(1+@toboa+@toali)||all||4
+~+|1|y|@clnsv |n|((-0.01*(@bstyp.ge.2.5)).min.(-0.01*(@rstyp.ge.2.5)))*log10(1+@toboa+@toali)||all||4
 ~+|1|y|@clnst |n|1-(1-(@clnsf-@clnsv))*@clnim||all|4
 q
 ~/ - Station cleanliness summary by station type:
