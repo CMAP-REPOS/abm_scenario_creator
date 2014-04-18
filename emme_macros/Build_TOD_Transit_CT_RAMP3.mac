@@ -80,9 +80,9 @@ batchin=%t2%\%1%\bus.itinerary_%y%
 ~+; 2; 1; @rspac; parking spaces at rail station; 0
 ~+; 2; 1; @rpcos; rail parking cost at station; 0
 ~+; 2; 1; @zone;  CMAP zone; 0
-~+; 2; 1; @bstyp; bus stop type 1-4; 0
+~+; 2; 1; @bstyp; bus stop type 1-6; 0
 ~+; 2; 1; @bsinf; bus stop info 1=no, 2=yes; 0
-~+; 2; 1; @rstyp; rail stat type 1-4; 0
+~+; 2; 1; @rstyp; rail stat type 1-6; 0
 ~+; 2; 1; @rsinf; rail stat info 1=no, 2=yes; 0
 ~+; 2; 1; @wconv; Base wait convenience factor; 1
 ~+; 2; 1; @wcona; Wait convenience addition factor; 0
@@ -109,7 +109,7 @@ batchin=%t2%\%1%\bus.itinerary_%y%
 ~+; 2; 3; @ldist; Line total distance; 0
 ~+; 2; 3; @hfrac; Wait time function as fraction of hdwy; 0.5
 ~+; 2; 3; @relim; Reliability policy impact; 1
-~+; 2; 3; @easeb; Ease of boarding 1=worst, 3=best; 0
+~+; 2; 3; @easeb; Ease of boarding 1=worst, 4=best; 0
 ~+; 2; 3; @easbp; Ease of boarding penalty; 0
 ~+; 2; 3; @hdway; Line headway; 0
 ~+; 2; 4; @ivtpf; Line in-vehicle time perception factor; 1
@@ -280,9 +280,9 @@ batchin=%t2%\boarding_ease_by_line_id.csv
 ~+|3|@easeb|n|all|1,2|n|y
 q
 2.41
-~+|1|y|@easb1|n|1||@easeb=1,1||all|4
-~+|1|y|@easb2|n|1||@easeb=2,2||all|4
-~+|1|y|@easb3|n|1||@easeb=3,3||all|4
+~+|1|y|@easb1|n|1||@easeb=1.00,1.49||all|4
+~+|1|y|@easb2|n|1||@easeb=1.50,2.49||all|4
+~+|1|y|@easb3|n|1||@easeb=2.50,4.00||all|4
 q
 ~/ INPUT PRODUCTIVITY BONUS FACTORS
 batchin=%t2%\productivity_bonus_by_line_id.csv
