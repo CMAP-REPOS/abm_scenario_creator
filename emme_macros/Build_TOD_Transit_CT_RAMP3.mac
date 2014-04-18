@@ -280,6 +280,9 @@ batchin=%t2%\boarding_ease_by_line_id.csv
 ~+|3|@easeb|n|all|1,2|n|y
 q
 2.41
+~#~+|1|y|@easb1|n|1||@easeb=1,1||all|4
+~#~+|1|y|@easb2|n|1||@easeb=2,2||all|4
+~#~+|1|y|@easb3|n|1||@easeb=3,3||all|4
 ~+|1|y|@easb1|n|1||@easeb=1.00,1.49||all|4
 ~+|1|y|@easb2|n|1||@easeb=1.50,2.49||all|4
 ~+|1|y|@easb3|n|1||@easeb=2.50,4.00||all|4

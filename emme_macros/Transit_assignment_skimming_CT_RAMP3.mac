@@ -114,6 +114,8 @@ q
 ~#~+|1|y|@timbo|n|%r24%||@bstyp=5|@rstyp=5||4
 ~+|1|y|@timbo|n|((-0.5+(0.5+1.5*(@bstyp>=4))*@bstyp).max.(-0.5+(0.5+1.5*(@rstyp>=4))*@rstyp).max.0.5).min.3.5||all|4
 ~+|1|y|@timbf|n|@timbo||all|4
+~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
+~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
 ~+|1|y|@easbp|n|%r25%||@easeb=1.00,1.49||4
 ~+|1|y|@easbp|n|%r26%||@easeb=1.50,2.49||4
 ~+|1|y|@perbo|n|%r27%||all|4
@@ -1313,14 +1315,19 @@ q
 q
 ~/ - Station cleanliness summary by station type:
 2.41
+~#~+|1|n|@clnst||@bstyp=1|@rstyp=1||5
 ~+|1|n|@clnst||@bstyp=1.00,1.49|@rstyp=1.00,1.49||5
 ~+|2|ms999|MinCln|Min Cleanliness||3|ms998|MaxCln|Max Cleanliness||1
+~#~+|1|n|@clnst||@bstyp=2|@rstyp=2||5
 ~+|1|n|@clnst||@bstyp=1.50,2.49|@rstyp=1.50,2.49||5
 ~+|2|ms997|MinCln|Min Cleanliness||3|ms996|MaxCln|Max Cleanliness||1
+~#~+|1|n|@clnst||@bstyp=3|@rstyp=3||5
 ~+|1|n|@clnst||@bstyp=2.50,3.49|@rstyp=2.50,3.49||5
 ~+|2|ms995|MinCln|Min Cleanliness||3|ms994|MaxCln|Max Cleanliness||1
+~#~+|1|n|@clnst||@bstyp=4|@rstyp=4||5
 ~+|1|n|@clnst||@bstyp=3.50,4.49|@rstyp=3.50,4.49||5
 ~+|2|ms993|MinCln|Min Cleanliness||3|ms992|MaxCln|Max Cleanliness||1
+~#~+|1|n|@clnst||@bstyp=5|@rstyp=5||5
 ~+|1|n|@clnst||@bstyp=4.50,6.00|@rstyp=4.50,6.00||5
 ~+|2|ms991|MinCln|Min Cleanliness||3|ms990|MaxCln|Max Cleanliness||1
 q
