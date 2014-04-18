@@ -100,18 +100,19 @@ q
 ~+|1|y|@wconf|n|@wconv+@wcona||all|4
 q
 / CALCULATE BASE BOARDING TIME BY STATION TYPE (ELEVATOR, TRAVERSAL)
-~r21=0.5 /1,2=bus stops: pole, shelter
-~r22=1.0 /3=bus plaza, 
-~r23=1.5 /4=CTA, Metra station
-~r24=3.5 /5=Metra rail terminal
+~#~r21=0.5 /1,2=bus stops: pole, shelter
+~#~r22=1.0 /3=bus plaza, 
+~#~r23=1.5 /4=CTA, Metra station
+~#~r24=3.5 /5=Metra rail terminal
 ~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
 ~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
 ~r27=2.5 /boarding time weight (base perception factor)
 2.41
-~+|1|y|@timbo|n|%r21%||all|4
-~+|1|y|@timbo|n|%r22%||@bstyp=3|@rstyp=3||4
-~+|1|y|@timbo|n|%r23%||@bstyp=4|@rstyp=4||4
-~+|1|y|@timbo|n|%r24%||@bstyp=5|@rstyp=5||4
+~#~+|1|y|@timbo|n|%r21%||all|4
+~#~+|1|y|@timbo|n|%r22%||@bstyp=3|@rstyp=3||4
+~#~+|1|y|@timbo|n|%r23%||@bstyp=4|@rstyp=4||4
+~#~+|1|y|@timbo|n|%r24%||@bstyp=5|@rstyp=5||4
+~+|1|y|@timbo|n|((-0.5+(0.5+1.5*(@bstyp>=4))*@bstyp).max.(-0.5+(0.5+1.5*(@rstyp>=4))*@rstyp).max.0.5).min.3.5||all|4
 ~+|1|y|@timbf|n|@timbo||all|4
 ~+|1|y|@easbp|n|%r25%||@easeb=1||4
 ~+|1|y|@easbp|n|%r26%||@easeb=2||4
@@ -266,7 +267,7 @@ q
 ~#~+|1|y|@clnim|n|1.00||@bstyp=3|@rstyp=3||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=4|@rstyp=4||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=5|@rstyp=5||4
-~+|1|y|@clnim|n|1.00||!@bstyp=0|!@rstyp=0||4
+~+|1|y|@clnim|n|1.00||all||4
 q
 ~x=1
 ~:EQUILIBRATION LOOP
@@ -1299,14 +1300,15 @@ q
 ~?!r198>%r199%
 ~$EAWT REPORT LOOP
 q
-~/ - Variable cleanliness index 
+~/ - Variable cleanliness index
 2.41
 ~+|1|y|@toboa |n|@borav||4|all|all|4
 ~+|1|y|@toalij|n|@trvav+@boravn-@trvavn||4|all|all|4
-~+|1|y|@clnsv |n|%r85%*log10(1+@toboa+@toali)||@bstyp=1,2|@rstyp=1,2||4
-~+|1|y|@clnsv |n|%r86%*log10(1+@toboa+@toali)||@bstyp=3  |@rstyp=3  ||4
-~+|1|y|@clnsv |n|%r87%*log10(1+@toboa+@toali)||@bstyp=4  |@rstyp=4  ||4
-~+|1|y|@clnsv |n|%r88%*log10(1+@toboa+@toali)||@bstyp=5  |@rstyp=5  ||4
+~#~+|1|y|@clnsv |n|%r85%*log10(1+@toboa+@toali)||@bstyp=1,2|@rstyp=1,2||4
+~#~+|1|y|@clnsv |n|%r86%*log10(1+@toboa+@toali)||@bstyp=3  |@rstyp=3  ||4
+~#~+|1|y|@clnsv |n|%r87%*log10(1+@toboa+@toali)||@bstyp=4  |@rstyp=4  ||4
+~#~+|1|y|@clnsv |n|%r88%*log10(1+@toboa+@toali)||@bstyp=5  |@rstyp=5  ||4
+~+|1|y|@clnsv |n|((-0.01*(@bstyp>=2.5)).min.(-0.01*(@rstyp>=2.5)))*log10(1+@toboa+@toali)||all||4
 ~+|1|y|@clnst |n|1-(1-(@clnsf-@clnsv))*@clnim||all|4
 q
 ~/ - Station cleanliness summary by station type:
