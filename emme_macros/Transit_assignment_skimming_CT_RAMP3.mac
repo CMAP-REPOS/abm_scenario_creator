@@ -53,9 +53,9 @@ q
 2.41
 ~+|1|y|@hfrac|n
 ~+|( (%r01%*hdwy).min.
-~+|( (%r08%+%r02%*(hdwy-%r05%)).min. 
+~+|( (%r08%+%r02%*(hdwy-%r05%)).min.
 ~+|( (%r09%+%r03%*(hdwy-%r05%-%r06%)).min.
-~+|( %r10%+%r04%*(hdwy-%r05%-%r06%-%r07%) ) 
+~+|( %r10%+%r04%*(hdwy-%r05%-%r06%-%r07%) )
 ~+|)))/hdwy
 ~+||mod=BEPQL||4|q
 ~r01=0.50000 /slope for 1st segment (high frequency) rail
@@ -76,9 +76,9 @@ q
 2.41
 ~+|1|y|@hfrac|n
 ~+|( (%r01%*hdwy).min.
-~+|( (%r08%+%r02%*(hdwy-%r05%)).min. 
+~+|( (%r08%+%r02%*(hdwy-%r05%)).min.
 ~+|( (%r09%+%r03%*(hdwy-%r05%-%r06%)).min.
-~+|( %r10%+%r04%*(hdwy-%r05%-%r06%-%r07%) ) 
+~+|( %r10%+%r04%*(hdwy-%r05%-%r06%-%r07%) )
 ~+|)))/hdwy
 ~+||mod=CM||4|q
 2.41
@@ -88,20 +88,20 @@ q
 ~#~r11=2.50 /1=Pole
 ~#~r12=2.25 /2=Shelter
 ~#~r13=2.00 /3=Plaza
-~#~r14=1.75 /4=Station 
+~#~r14=1.75 /4=Station
 ~r15=0.90 /Real-time information convenience discount
 2.41
 ~#~+|1|y|@wconv|n|%r11%||all|4
 ~#~+|1|y|@wconv|n|%r12%||@bstyp=2|@rstyp=2||4
 ~#~+|1|y|@wconv|n|%r13%||@bstyp=3|@rstyp=3||4
 ~#~+|1|y|@wconv|n|%r14%||@bstyp=4,5|@rstyp=4,5||4
-~+|1|y|@wconv|n|(2.75-0.25*@bstyp).max.(2.75-0.25*@rstyp).max.1.75||all||4
+~+|1|y|@wconv|n|(2.75-0.25*@bstyp).max.(2.75-0.25*@rstyp).max.1.75||all|4
 ~+|1|y|@wconv|n|@wconv*%r15%||@bsinf=2|@rsinf=2||4
 ~+|1|y|@wconf|n|@wconv+@wcona||all|4
 q
 / CALCULATE BASE BOARDING TIME BY STATION TYPE (ELEVATOR, TRAVERSAL)
 ~#~r21=0.5 /1,2=bus stops: pole, shelter
-~#~r22=1.0 /3=bus plaza, 
+~#~r22=1.0 /3=bus plaza,
 ~#~r23=1.5 /4=CTA, Metra station
 ~#~r24=3.5 /5=Metra rail terminal
 ~#~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
@@ -116,7 +116,7 @@ q
 ~+|1|y|@timbf|n|@timbo||all|4
 ~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
 ~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
-~+|1|y|@easbp|n|3-@easeb||all||4
+~+|1|y|@easbp|n|3-@easeb||all|4
 ~+|1|y|@perbo|n|%r27%||all|4
 ~+|1|y|@perbf|n|@perbo+@perba||all|4
 q
@@ -179,7 +179,7 @@ q
 ~+|1|y|@ivtf3|n|@ivtpf*(1+@soba3+@crowf+@clnob*%r30%
 ~+|+@prof3*(@pseat+0.001)/(@pseat+@pstan+0.001))||all|all|4
 q
-/ SET BASE FARES BY MODE (ut1) 
+/ SET BASE FARES BY MODE (ut1)
 ~r41= 225  /CTA BUS AND RAIL
 ~r42= 175  /PACE
 ~r43= 183  /METRA
@@ -194,7 +194,7 @@ q
 2.41
 ~+|1|y|ul1|0    ||   all| 4
 ~+|1|y|ul1|%r44%||mod=bc||4|q
-/ COST PERCEPTION FACTOR IN MIN 
+/ COST PERCEPTION FACTOR IN MIN
 / 1st user class
 ~r54=5   /VOT, $/h
 ~r54*100 /VOT, cents/h
@@ -232,18 +232,18 @@ q
 ~r72=-0.155 /Generic constant
 ~r73=2.592  /Coefficient for frequency
 ~r74=0.048  /Coefficient for V/C
-~r75=0.145  /Stop order (cumulative distance) share  
-/ Reliability policy impact variable by mode: 1.00=baseline, 0.00=fully reliable 
+~r75=0.145  /Stop order (cumulative distance) share
+/ Reliability policy impact variable by mode: 1.00=baseline, 0.00=fully reliable
 2.41
 ~+|1|y|@relim|n|1.00||mod=BPL||4
 ~+|1|y|@relim|n|1.00||mod=EQ ||4
 ~+|1|y|@relim|n|1.00||mod=C  ||4
 ~+|1|y|@relim|n|1.00||mod=M  ||4
 q
-~/ STATION CLEANLINESS INDEX 
+~/ STATION CLEANLINESS INDEX
 ~/ Fixed component by station type (1.00=ideal, 0.00=worst)
 ~#~r81=0.80 /bus stops: pole, shelter
-~#~r82=0.85 /bus plaza 
+~#~r82=0.85 /bus plaza
 ~#~r83=0.90 /CTA, Metra station
 ~#~r84=0.95 /Metra terminal station
 2.41
@@ -253,22 +253,22 @@ q
 ~#~+|1|y|@clnsf|n|%r84%||@bstyp=5|@rstyp=5||4
 ~+|1|y|@clnsf|n|(0.7+0.05*@bstyp).max.(0.7+0.05*@rstyp).max.0.8||all|4
 q
-~/ Variable component as multiplier on 10-logged number of passengers 
+~/ Variable component as multiplier on 10-logged number of passengers
 ~r85=-0.00 /bus stops: pole, shelter
-~r86=-0.01 /bus plaza 
+~r86=-0.01 /bus plaza
 ~r87=-0.01 /CTA, Metra station
 ~r88=-0.01 /Metra terminal station
-/ Station cleanliness penalties 
+/ Station cleanliness penalties
 ~r89=1.50  /extra boarding factor per deviation from 1.00=ideal
 ~r90=1.20  /extra wait time weight per deviation from 1.00=ideal
-/ Station cleanliness policy impact variable by station type: 1.00=baseline, 0.00=clean completely 
+/ Station cleanliness policy impact variable by station type: 1.00=baseline, 0.00=clean completely
 2.41
 ~#~+|1|y|@clnim|n|1.00||@bstyp=1|@rstyp=1||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=2|@rstyp=2||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=3|@rstyp=3||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=4|@rstyp=4||4
 ~#~+|1|y|@clnim|n|1.00||@bstyp=5|@rstyp=5||4
-~+|1|y|@clnim|n|1.00||all||4
+~+|1|y|@clnim|n|1.00||all|4
 q
 ~x=1
 ~:EQUILIBRATION LOOP
@@ -295,7 +295,7 @@ q
 / VOT parameters
 ~+|~z=%y%|~z+50
 ~?r205=1
-~+|~?x=%r200%|~r250+30|~$>BYPASS CONVENTIONAL 
+~+|~?x=%r200%|~r250+30|~$>BYPASS CONVENTIONAL
 ~/CONVENTIONAL TRANSIT WITH WALK ACCESS - Local bus and CTA train
 ~/Extended transit assignment
 5.32   /Extended transit assignment
@@ -306,23 +306,23 @@ mf%r202% /demand matrix
 BCPLuvxybcrae
 2      /Handle connector-to-connector path: 1=allow (standard), 2=prohibit (assign to another path), 3=prohibit (do not assign)
 1      /Prohibit connector-to-connector paths: 1=everywhere, 2=based on node attribute
-2      /Distribute flow between connectors based on: 1=only the best (standard), 2=transit time (logit), 3-5=user-defined proportions 
+2      /Distribute flow between connectors based on: 1=only the best (standard), 2=transit time (logit), 3-5=user-defined proportions
 0.2    /Scale parameter for logit
-0.05   /Truncation/cutoff parameter 
-2      /Distribute flow between attractive lines at stops by: 1=frequency (standard), 2=frequency and transit time to destination 
+0.05   /Truncation/cutoff parameter
+2      /Distribute flow between attractive lines at stops by: 1=frequency (standard), 2=frequency and transit time to destination
 1      /Use frequency and transit time to destination: 1=everywhere, 2=based on node attribute
 3      /Source for effective headways: 1=actual line heaway, 2=user-defined line attribute, 3=user-defined segment attribute
-@hdwef /Effective headway multiplied by the fraction to get wait time 
+@hdwef /Effective headway multiplied by the fraction to get wait time
 1      /Headway fraction (already accounted in effective headway)
 1      /Spread factor (multiplied on perception factor)
 @wconf /Wait time perception factor
 4      /Source for boarding times: 1=same value for entire network, 2=node-specfic, 3=line-specific, 4=node and line specific
-@timbf /Node attribute containing boarding time (by station type) 
-@perbf /Node boarding time perception factor 
+@timbf /Node attribute containing boarding time (by station type)
+@perbf /Node boarding time perception factor
 @easbp /Line attribute containing additional boarding time (ease of boarding by mode)
 1      /Line boarding time perception factor
 3      /Source for boarding cost: 1=same value for entire network, 2=node-specific, 3=line-specific, 4=node and line specific
-ut1    /Line attribute contating boarding cost, cents 
+ut1    /Line attribute contating boarding cost, cents
 %rz%   /Line boarding cost perception factor (1/VOT, min/cent)
 @ivtf%y% /In-vehicle time perception factor (segment mode-vehicle-specific convenience)
 @zfare /Attribute containing in-vehicle cost (incremental zone fare by segment)
@@ -330,24 +330,24 @@ ut1    /Line attribute contating boarding cost, cents
 @pefli /Auxiliary transit time perception factor (PEF by link)
 ul1    /Attribute containing auxiliary transit cost (transfer discount)
 0      /Auxiliary transit cost perception factor (transfer discount is not used in path building but can be skimmed)
-y      /Save strategies for post-assignment analysis 
+y      /Save strategies for post-assignment analysis
        /Matrix to hold total transit impedance
 2      /Printer
 ~?x<%r200%
 ~$SKIP CONVENTIONAL TRANSIT SKIMMING
-~/Analysis & skimming for extended transit assignment  
-6.27    /Analysis for extended transit assignment  
+~/Analysis & skimming for extended transit assignment
+6.27    /Analysis for extended transit assignment
 ~/ - Skims of path-building attributes that include all conventional modes
 1       /1=matrix, 2=network, 3=other, 4=user-defined, 5=strategy and transit path details, 6=summary stats, 7=end
 1       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 mf%r250%/Matrix to hold total transit impedance for P&R convolution
 ~+|~?q=1|y|Cgen%2%%y%|Conv_Gencost_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 y
-2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings       
+2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 5       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold in-vehicle time (total)
 ~+|~?q=1|y|Civt%2%%y%|Conv_IVT_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y       
+y
 2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 6       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold auxiliary time
@@ -357,7 +357,7 @@ y
 1       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold first waiting time
 ~+|~?q=1|y|Cwa1%2%%y%|Conv_1Wait_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y       
+y
 2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 2       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%   /Matrix to hold second waiting time (total wait initially, then first wait subtracted)
@@ -366,23 +366,23 @@ y
 5       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 mf%r250%/Matrix to hold number of boardings
 ~+|~?q=1|y|Cboa%2%%y%|Conv_Boar_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 1       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold initial boarding fares
 ~+|~?q=1|y|Cifa%2%%y%|Conv_InFa_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 3       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold in-vehicle cost (incremental zone transit fares)
 ~+|~?q=1|y|Czfa%2%%y%|Conv_ZoFa_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 4       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold auxiliary cost (transfer link fare discounts)
 ~+|~?q=1|y|Ctdi%2%%y%|Conv_Disc_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 *
 2       /Printer
 ~/ - Skims of other user-defined attributes that include all conventional modes
@@ -581,12 +581,12 @@ mf%r250%/Matrix to hold O-D attribute
 5       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold in-vehicle time (bus)
 ~+|~?q=1|y|Civb%2%%y%|Conv_IVTb_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 5       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
-mf%r250%/Matrix to hold number of bus boardings 
+mf%r250%/Matrix to hold number of bus boardings
 ~+|~?q=1|y|Cbob%2%%y%|Conv_Boab_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 BPL
 2       /Printer
 ~/ - In-vehicle time for CTA train
@@ -596,7 +596,7 @@ BPL
 mf%r250%/Matrix to hold in-vehicle time (CTA)
 ~+|~?q=1|y|Civc%2%%y%|Conv_IVTc_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 C
 2       /Printer
 q
@@ -646,13 +646,13 @@ q
 ~/ - Calculate final transit fares
 3.21
 ~+|1|y|mf%r250%|~?q=1|y|Cfar%2%%y%|Conv_Fare_Per%2%_Class%y%|~?q=1|y|0
-~/ - Pay at initial boarding 
+~/ - Pay at initial boarding
 mf"Cifa%2%%y%"
 ~/ - Add incremental zone fare
 +mf"Czfa%2%%y%"
 ~/ - Deduct transfer discount if not greater than initial boarding
 -get(mf"Ctdi%2%%y%".min.%r44%)*(mf"Cifa%2%%y%".gt.put(1))+
-~/ - Add default tranfer cost once if 2 boardings or more  
+~/ - Add default tranfer cost once if 2 boardings or more
 %r45%*(mf"Cbob%2%%y%".ge.2)
 ~+|||n|2|~r250+1
 q
@@ -668,23 +668,23 @@ mf%r203% /demand matrix
 BCPLuvxybcrEQMmwztdae
 2      /Handle connector-to-connector path: 1=allow (standard), 2=prohibit (assign to another path), 3=prohibit (do not assign)
 1      /Prohibit connector-to-connector paths: 1=everywhere, 2=based on node attribute
-2      /Distribute flow between connectors based on: 1=only the best (standard), 2=transit time (logit), 3-5=user-defined proportions 
+2      /Distribute flow between connectors based on: 1=only the best (standard), 2=transit time (logit), 3-5=user-defined proportions
 0.2    /Scale parameter for logit
-0.05   /Truncation/cutoff parameter 
-2      /Distribute flow between attractive lines at stops by: 1=frequency (standard), 2=frequency and transit time to destination 
+0.05   /Truncation/cutoff parameter
+2      /Distribute flow between attractive lines at stops by: 1=frequency (standard), 2=frequency and transit time to destination
 1      /Use frequency and transit time to destination: 1=everywhere, 2=based on node attribute
 3      /Source for effective headways: 1=actual line heaway, 2=user-defined line attribute, 3=user-defined segment attribute
-@hdwef /Effective headway multiplied by the fraction to get wait time 
+@hdwef /Effective headway multiplied by the fraction to get wait time
 1      /Headway fraction (already accounted in effective headway)
 1      /Spread factor (mutiplied on perception factor)
 @wconf /Wait time perception factor
 4      /Source for boarding times: 1=same value for entire network, 2=node-specfic, 3=line-specific, 4=node and line specific
-@timbf /Node attribute containing boarding time (by station type) 
-@perbf /Node boarding time perception factor 
+@timbf /Node attribute containing boarding time (by station type)
+@perbf /Node boarding time perception factor
 @easbp /Line attribute containing additional boarding time (ease of boarding by mode)
-1      /Line boarding time perception factor3      
+1      /Line boarding time perception factor3
 3      /Source for boarding cost: 1=same value for entire network, 2=node-specific, 3=line-specific, 4=node and line specific
-ut1    /Line attribute contating boarding cost, cents 
+ut1    /Line attribute contating boarding cost, cents
 %rz%   /Line boarding cost perception factor (1/VOT, min/cent)
 @ivtf%y% /In-vehicle time perception factor (segment mode-vehicle-specific convenience by line)
 @zfare /Attribute containing in-vehicle cost (incremental zone fare by segment)
@@ -692,24 +692,24 @@ ut1    /Line attribute contating boarding cost, cents
 @pefli /Auxiliary transit time perception factor (PEF by link)
 ul1    /Attribute containing auxiliary transit cost (transfer discount)
 0      /Auxiliary transit cost perception factor (transfer discount is not used in path building but can be skimmed)
-y      /Save strategies for post-assignment analysis 
+y      /Save strategies for post-assignment analysis
        /Matrix to hold total transit impedance
 2      /Printer
 ~?x<%r200%
 ~$SKIP PREMIUM TRANSIT SKIMMING
-~/Analysis for extended transit assignment  
-6.27    /Analysis for extended transit assignment  
+~/Analysis for extended transit assignment
+6.27    /Analysis for extended transit assignment
 ~/ - Skims of path-building attributes that include all premium and conventional modes
 1       /1=matrix, 2=network, 3=other, 4=user-defined, 5=strategy and transit path details, 6=summary stats, 7=end
 1       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 mf%r250%/Matrix to hold total transit impedance for P&R convolution
 ~+|~?q=1|y|Pgen%2%%y%|Prem_Gencost_Per%2%_Class%y%|~?q=1|y|999|~r250+1
 y
-2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings       
+2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 5       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold in-vehicle time (total)
 ~+|~?q=1|y|Pivt%2%%y%|Prem_IVT_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y       
+y
 2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 6       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold auxiliary time
@@ -719,32 +719,32 @@ y
 1       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold first waiting time
 ~+|~?q=1|y|Pwa1%2%%y%|Prem_1Wait_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y       
+y
 2       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 2       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold second waiting time (total wait initially, then 1st wait is subtracted)
 ~+|~?q=1|y|Pwa2%2%%y%|Prem_2Wait_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 5       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 mf%r250%/Matrix to hold number of boardings
 ~+|~?q=1|y|Pboa%2%%y%|Prem_Boar_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 1       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold initial boarding fares
 ~+|~?q=1|y|Pifa%2%%y%|Prem_InFa_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 3       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold in-vehicle cost (incremental zone transit fares)
 ~+|~?q=1|y|Pzfa%2%%y%|Prem_ZoFa_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 3       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
 4       /1=first boarding cost, 2=total boarding cost, 3=in-vehicle cost, 4=auxiliary transit cost
 mf%r250%/Matrix to hold auxiliary cost (transfer link fare discounts)
 ~+|~?q=1|y|Ptdi%2%%y%|Prem_Disc_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 *
 2       /Printer
 ~/ - Skims of other user-defined attributes that include all conventional modes
@@ -943,12 +943,12 @@ mf%r250%/Matrix to hold O-D attribute
 5       /1=first wait, 2=total wait, 3=first boarding time, 4=total boarding time, 5=in-vehicle time, 6=auxiliary time
 mf%r250%/Matrix to hold in-vehicle time (bus)
 ~+|~?q=1|y|Pivb%2%%y%|Prem_IVTb_Per%2%_Class%y%|~?q=1|y|0|~r250+1
-y 
+y
 5       /1=total transit impedance, 2=time component, 3=cost components, 4=distance, 5=number of boardings
-mf%r250%/Matrix to hold number of bus boardings 
+mf%r250%/Matrix to hold number of bus boardings
 ~+|~?q=1|y|Pbob%2%%y%|Prem_Boab_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 BPLEQ
 2       /Printer
 ~/ - In-vehicle time for Premium (Express bus and Metra rail)
@@ -958,7 +958,7 @@ BPLEQ
 mf%r250%/Matrix to hold in-vehicle time (Premium)
 ~+|~?q=1|y|Pivp%2%%y%|Prem_IVTp_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 MEQ
 2       /Printer
 ~/ - In-vehicle time for Local bus
@@ -968,7 +968,7 @@ MEQ
 mf%r250%/Matrix to hold in-vehicle time (Local Bus)
 ~+|~?q=1|y|Pivl%2%%y%|Prem_IVTlb_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 BPL
 2       /Printer
 ~/ - In-vehicle time for CTA train
@@ -978,7 +978,7 @@ BPL
 mf%r250%/Matrix to hold in-vehicle time (CTA)
 ~+|~?q=1|y|Pivc%2%%y%|Prem_IVTc_Per%2%_Class%y%|~?q=1|y|0|~r250+1
 n
-1       /1=Actual components, 2=perceived components 
+1       /1=Actual components, 2=perceived components
 C
 2       /Printer
 q
@@ -1030,13 +1030,13 @@ q
 ~/ - Calculate final transit fares
 3.21
 ~+|1|y|mf%r250%|~?q=1|y|Pfar%2%%y%|Prem_Fare_Per%2%_Class%y%|~?q=1|y|0
-~/ - Pay at initial boarding 
+~/ - Pay at initial boarding
 mf"Pifa%2%%y%"
 ~/ - Add incremental zone fare
 +mf"Pzfa%2%%y%"
 ~/ - Deduct transfer discount if not greater than initial boarding
 -get(mf"Ptdi%2%%y%".min.%r44%)*(mf"Pifa%2%%y%".gt.put(1))+
-~/ - Add default tranfer cost once if 2 boardings or more  
+~/ - Add default tranfer cost once if 2 boardings or more
 %r45%*(mf"Pbob%2%%y%".ge.2)
 ~+|||n|2|~r250+1
 q
@@ -1102,12 +1102,12 @@ q
 ~+|1|n|@pseat*len                        ||mode=M  ||all|5|4|ms969|SumSea|Sum seating pass-miles  |1
 ~+|1|n|(@pstan.min.(@lcapt-@lcaps))*len  ||mode=M  ||all|5|4|ms968|SumSta|Sum standing pass-miles |1
 ~+|1|n|((@pstan-@lcapt+@lcaps).max.0)*len||mode=M  ||all|5|4|ms967|SumExt|Sum excessive pass-miles|1
-~+|1|n|@crowf    ||mode=BPL||all|5|3|ms996|MaxCro|Max crowding factor    ||||1 
+~+|1|n|@crowf    ||mode=BPL||all|5|3|ms996|MaxCro|Max crowding factor    ||||1
 ~+|1|n|@crowf    ||mode=EQ ||all|5|3|ms986|MaxCro|Max crowding factor    ||||1
 ~+|1|n|@crowf    ||mode=C  ||all|5|3|ms976|MaxCro|Max crowding factor    ||||1
 ~+|1|n|@crowf    ||mode=M  ||all|5|3|ms966|MaxCro|Max crowding factor    ||||1
 q
-~/   Mode     Seat. pass-mls  Stand. pass-mls  Excess. pass-mls  Max crowd. factor 
+~/   Mode     Seat. pass-mls  Stand. pass-mls  Excess. pass-mls  Max crowd. factor
 ~/   Loc Bus     %ms999.0_9%       %ms998.0_9%       %ms997.0_9%       %ms996.3_9%
 ~/   Exp Bus     %ms989.0_9%       %ms988.0_9%       %ms987.0_9%       %ms986.3_9%
 ~/   CTA Rail    %ms979.0_9%       %ms978.0_9%       %ms977.0_9%       %ms976.3_9%
@@ -1124,7 +1124,7 @@ q
 ~/ - Productivity bonus summary
 2.41
 ~+|1|n|@prof1*@stpro||mod=BPL||all|5
-~+|2|ms999|MinPro|Min Prod, min||||3|ms998|MaxPro|Max Prod, min||||1 
+~+|2|ms999|MinPro|Min Prod, min||||3|ms998|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof1*@stpro||mod=EQ ||all|5
 ~+|2|ms997|MinPro|Min Prod, min||||3|ms996|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof1*@stpro||mod=C  ||all|5
@@ -1132,7 +1132,7 @@ q
 ~+|1|n|@prof1*@stpro||mod=M  ||all|5
 ~+|2|ms993|MinPro|Min Prod, min||||3|ms992|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof2*@stpro||mod=BPL||all|5
-~+|2|ms989|MinPro|Min Prod, min||||3|ms988|MaxPro|Max Prod, min||||1 
+~+|2|ms989|MinPro|Min Prod, min||||3|ms988|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof2*@stpro||mod=EQ ||all|5
 ~+|2|ms987|MinPro|Min Prod, min||||3|ms986|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof2*@stpro||mod=C  ||all|5
@@ -1140,7 +1140,7 @@ q
 ~+|1|n|@prof2*@stpro||mod=M  ||all|5
 ~+|2|ms983|MinPro|Min Prod, min||||3|ms982|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof3*@stpro||mod=BPL||all|5
-~+|2|ms979|MinPro|Min Prod, min||||3|ms978|MaxPro|Max Prod, min||||1 
+~+|2|ms979|MinPro|Min Prod, min||||3|ms978|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof3*@stpro||mod=EQ ||all|5
 ~+|2|ms977|MinPro|Min Prod, min||||3|ms976|MaxPro|Max Prod, min||||1
 ~+|1|n|@prof3*@stpro||mod=C  ||all|5
@@ -1270,7 +1270,7 @@ q
 ~/   PACE Exp. Bus (Q): %ms985.3%, %ms995.3%
 ~/   CTA Rail (C)     : %ms984.3%, %ms994.3%
 ~/   Metra Rail (M)   : %ms983.3%, %ms993.3%
-~/ - Extra average wait time due to unreliability 
+~/ - Extra average wait time due to unreliability
 2.41
 ~+|1|y|@eavwt|n|((%r71%+%r72%+%r73%*(1/(hdwy.min.30))+
 ~+|%r74%*((@trvav.min.@lcapt)/@lcaps)+%r75%*@cudis/@ldist).max.0)*
@@ -1288,7 +1288,7 @@ q
 ~+|~r197=%r198%|~r197+1
 ~+|~t9=%%%r18%r198%%%%|~t8=%%%r18%r197%%%%
 ~+|~r196=%t8%|~r196-0.001
-~+|1|n|@eavwt||mod=BPLEQ|and hdwy=%t9%,%r196%||all|5|6|ms999|NumEle|Num Elements 
+~+|1|n|@eavwt||mod=BPLEQ|and hdwy=%t9%,%r196%||all|5|6|ms999|NumEle|Num Elements
 ~+|                                                  6|ms998|NumEle|Num Elements |1
 ~r199=%ms999%
 ~?r199=0
@@ -1309,7 +1309,7 @@ q
 ~#~+|1|y|@clnsv |n|%r86%*log10(1+@toboa+@toali)||@bstyp=3  |@rstyp=3  ||4
 ~#~+|1|y|@clnsv |n|%r87%*log10(1+@toboa+@toali)||@bstyp=4  |@rstyp=4  ||4
 ~#~+|1|y|@clnsv |n|%r88%*log10(1+@toboa+@toali)||@bstyp=5  |@rstyp=5  ||4
-~+|1|y|@clnsv |n|((-0.01*(@bstyp.ge.2.5)).min.(-0.01*(@rstyp.ge.2.5)))*log10(1+@toboa+@toali)||all||4
+~+|1|y|@clnsv |n|((-0.01*(@bstyp.ge.2.5)).min.(-0.01*(@rstyp.ge.2.5)))*log10(1+@toboa+@toali)||all|4
 ~+|1|y|@clnst |n|1-(1-(@clnsf-@clnsv))*@clnim||all|4
 q
 ~/ - Station cleanliness summary by station type:
