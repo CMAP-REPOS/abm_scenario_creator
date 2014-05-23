@@ -32,8 +32,6 @@ node_table = os.path.join(TMM.gdb, 'extra_attr_nodes')
 with arcpy.da.UpdateCursor(node_table, TMM.node_fields, ''' "NODE_ID" IN ({0}) '''.format(",".join(selected_nodes))) as cursor:
     for row in cursor:
         for i in xrange(len(row)):
-            if ignore_zeroes and row[i] > 0:
-                pass
-            else:
+            if policy_values[i] > 0 or not ignore_zeroes:
                 row[i] = policy_values[i]
         cursor.updateRow(row)

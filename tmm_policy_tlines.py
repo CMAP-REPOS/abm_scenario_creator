@@ -32,8 +32,6 @@ tline_table = os.path.join(TMM.gdb, 'extra_attr_tlines')
 with arcpy.da.UpdateCursor(tline_table, TMM.tline_fields, ''' "TLINE_ID" IN ('{0}') '''.format("','".join(selected_tlines))) as cursor:
     for row in cursor:
         for i in xrange(len(row)):
-            if ignore_zeroes and row[i] > 0:
-                pass
-            else:
+            if policy_values[i] > 0 or not ignore_zeroes:
                 row[i] = policy_values[i]
         cursor.updateRow(row)
