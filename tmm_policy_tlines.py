@@ -2,7 +2,7 @@
 '''
     tmm_policy_tlines.py
     Author: npeterson
-    Revised: 2/6/2014
+    Revised: 5/23/2014
     ---------------------------------------------------------------------------
     This script will update the rows in the extra_attr_tlines table, which
     stores updated policies for all bus and train routes, for any that are
@@ -30,4 +30,6 @@ selected_tlines = [row[0] for row in arcpy.da.SearchCursor(tlines_lyr, ['ID'])]
 tline_table = os.path.join(TMM.gdb, 'extra_attr_tlines')
 with arcpy.da.UpdateCursor(tline_table, TMM.tline_fields, ''' "TLINE_ID" IN ('{0}') '''.format("','".join(selected_tlines))) as cursor:
     for row in cursor:
-        cursor.updateRow(policy_values)
+        for i in xrange(len(row)):
+            row[i] = policy_values[i] if policy_values[i] > 0 else row[i]
+        cursor.updateRow(row)

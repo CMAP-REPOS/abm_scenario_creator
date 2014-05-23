@@ -2,7 +2,7 @@
 '''
     tmm_policy_nodes.py
     Author: npeterson
-    Revised: 4/7/2014
+    Revised: 5/23/2014
     ---------------------------------------------------------------------------
     This script will update the rows in the extra_attr_nodes table, which
     stores updated policies for all bus stops and train stations, for any that
@@ -30,4 +30,6 @@ selected_nodes = [str(row[0]) for row in arcpy.da.SearchCursor(nodes_lyr, [TMM.n
 node_table = os.path.join(TMM.gdb, 'extra_attr_nodes')
 with arcpy.da.UpdateCursor(node_table, TMM.node_fields, ''' "NODE_ID" IN ({0}) '''.format(",".join(selected_nodes))) as cursor:
     for row in cursor:
-        cursor.updateRow(policy_values)
+        for i in xrange(len(row)):
+            row[i] = policy_values[i] if policy_values[i] > 0 else row[i]
+        cursor.updateRow(row)
