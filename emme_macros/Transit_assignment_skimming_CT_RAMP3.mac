@@ -1314,27 +1314,23 @@ q
 q
 ~/ - Station cleanliness summary by station type:
 2.41
-~#~+|1|n|@clnst||@bstyp=1|@rstyp=1||5
-~+|1|n|@clnst||@bstyp=1.00,1.49|@rstyp=1.00,1.49||5
+~# Changed following from discrete values to ranges. NMP 5/27/14
+~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms999|MinCln|Min Cleanliness||3|ms998|MaxCln|Max Cleanliness||1
-~#~+|1|n|@clnst||@bstyp=2|@rstyp=2||5
-~+|1|n|@clnst||@bstyp=1.50,2.49|@rstyp=1.50,2.49||5
+~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms997|MinCln|Min Cleanliness||3|ms996|MaxCln|Max Cleanliness||1
-~#~+|1|n|@clnst||@bstyp=3|@rstyp=3||5
-~+|1|n|@clnst||@bstyp=2.50,3.49|@rstyp=2.50,3.49||5
+~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms995|MinCln|Min Cleanliness||3|ms994|MaxCln|Max Cleanliness||1
-~#~+|1|n|@clnst||@bstyp=4|@rstyp=4||5
-~+|1|n|@clnst||@bstyp=3.50,4.49|@rstyp=3.50,4.49||5
+~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms993|MinCln|Min Cleanliness||3|ms992|MaxCln|Max Cleanliness||1
-~#~+|1|n|@clnst||@bstyp=5|@rstyp=5||5
-~+|1|n|@clnst||@bstyp=4.50,6.00|@rstyp=4.50,6.00||5
+~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms991|MinCln|Min Cleanliness||3|ms990|MaxCln|Max Cleanliness||1
 q
-~/   Min/max cleanlines - pole:          %ms999.3_6%, %ms998.3_6%
-~/   Min/max cleanlines - shelter:       %ms997.3_6%, %ms996.3_6%
-~/   Min/max cleanlines - plaza:         %ms995.3_6%, %ms994.3_6%
-~/   Min/max cleanlines - station:       %ms993.3_6%, %ms992.3_6%
-~/   Min/max cleanlines - major stat.:   %ms991.3_6%, %ms990.3_6%
+~/   Min/max cleanliness - pole:          %ms999.3_6%, %ms998.3_6%
+~/   Min/max cleanliness - shelter:       %ms997.3_6%, %ms996.3_6%
+~/   Min/max cleanliness - plaza:         %ms995.3_6%, %ms994.3_6%
+~/   Min/max cleanliness - station:       %ms993.3_6%, %ms992.3_6%
+~/   Min/max cleanliness - major stat.:   %ms991.3_6%, %ms990.3_6%
 ~/ - Additional boarding time penalty and wait time penalty for station non-cleanliness
 2.41
 ~+|1|y|@perba|n|((1-(@clnsf-@clnsv))*@clnim)*%r89%||all|4
