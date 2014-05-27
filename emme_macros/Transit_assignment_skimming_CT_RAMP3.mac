@@ -116,7 +116,7 @@ q
 ~+|1|y|@timbf|n|@timbo||all|4
 ~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
 ~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
-~+|1|y|@easbp|n|3-@easeb||all|4
+~+|1|y|@easbp|n|(3-@easeb).max.0||all|4
 ~+|1|y|@perbo|n|%r27%||all|4
 ~+|1|y|@perbf|n|@perbo+@perba||all|4
 q
