@@ -85,37 +85,33 @@ q
 ~+|1|y|@hdwef|n|hdwy*@hfrac||all|all|4
 q
 / CALCULATE BASE WAIT CONVENIENCE FACTOR BY STATION TYPE AND INFORMATION
-~#~r11=2.50 /1=Pole
-~#~r12=2.25 /2=Shelter
-~#~r13=2.00 /3=Plaza
-~#~r14=1.75 /4=Station
 ~r15=0.90 /Real-time information convenience discount
 2.41
-~#~+|1|y|@wconv|n|%r11%||all|4
-~#~+|1|y|@wconv|n|%r12%||@bstyp=2|@rstyp=2||4
-~#~+|1|y|@wconv|n|%r13%||@bstyp=3|@rstyp=3||4
-~#~+|1|y|@wconv|n|%r14%||@bstyp=4,5|@rstyp=4,5||4
+~# Modified @wconv calculation to allow continuous @bstyp/@rstyp values,
+~# defined to match original specifications below (NMP 5/28/14):
+~#   ~r11=2.50 /1=Pole
+~#   ~r12=2.25 /2=Shelter
+~#   ~r13=2.00 /3=Plaza
+~#   ~r14=1.75 /4=Station
 ~+|1|y|@wconv|n|(2.75-0.25*@bstyp).max.(2.75-0.25*@rstyp).max.1.75||all|4
 ~+|1|y|@wconv|n|@wconv*%r15%||@bsinf=2|@rsinf=2||4
 ~+|1|y|@wconf|n|@wconv+@wcona||all|4
 q
 / CALCULATE BASE BOARDING TIME BY STATION TYPE (ELEVATOR, TRAVERSAL)
-~#~r21=0.5 /1,2=bus stops: pole, shelter
-~#~r22=1.0 /3=bus plaza,
-~#~r23=1.5 /4=CTA, Metra station
-~#~r24=3.5 /5=Metra rail terminal
-~#~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
-~#~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
 ~r27=2.5 /boarding time weight (base perception factor)
 2.41
-~#~+|1|y|@timbo|n|%r21%||all|4
-~#~+|1|y|@timbo|n|%r22%||@bstyp=3|@rstyp=3||4
-~#~+|1|y|@timbo|n|%r23%||@bstyp=4|@rstyp=4||4
-~#~+|1|y|@timbo|n|%r24%||@bstyp=5|@rstyp=5||4
+~# Modified @timbo calculation to allow continuous @bstyp/@rstyp values,
+~# defined to match original specifications below (NMP 5/28/14):
+~#   ~r21=0.5 /1,2=bus stops: pole, shelter
+~#   ~r22=1.0 /3=bus plaza,
+~#   ~r23=1.5 /4=CTA, Metra station
+~#   ~r24=3.5 /5=Metra rail terminal
 ~+|1|y|@timbo|n|0.5|.max.(0.5*@bstyp+1.5*((@bstyp-4).max.0)-0.5)|.max.(0.5*@rstyp+1.5*((@rstyp-4).max.0)-0.5)|.min.3.5||all|4
 ~+|1|y|@timbf|n|@timbo||all|4
-~#~+|1|y|@easbp|n|%r25%||@easeb=1||4
-~#~+|1|y|@easbp|n|%r26%||@easeb=2||4
+~# Modified @easbp calculation to allow continuous @bstyp/@rstyp values,
+~# defined to match original specifications below (NMP 5/28/14):
+~#   ~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
+~#   ~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
 ~+|1|y|@easbp|n|(3-@easeb).max.0||all|4
 ~+|1|y|@perbo|n|%r27%||all|4
 ~+|1|y|@perbf|n|@perbo+@perba||all|4
@@ -145,24 +141,9 @@ q
 ~+|1|y|@ivtpf|n|@ivtpf+0.00||mod=C  ||@zone=1,80|or @zonej=1,80||4
 ~+|1|y|@ivtpf|n|@ivtpf+0.00||mod=M  ||@zone=1,80|or @zonej=1,80||4
 q
-~#/~/ Productivity bonus - IVT weight reduction for seating passenger by user class and mode
-~#/2.41
-~#/~/ - User class 1
-~#~+|1|y|@prof1|n| 0.00||mod=BPL||all|4
-~#~+|1|y|@prof1|n|-0.05||mod=EQ ||all|4
-~#~+|1|y|@prof1|n| 0.00||mod=C  ||all|4
-~#~+|1|y|@prof1|n|-0.05||mod=M  ||all|4
-~#/~/ - User class 2
-~#~+|1|y|@prof2|n| 0.00||mod=BPL||all|4
-~#~+|1|y|@prof2|n|-0.10||mod=EQ ||all|4
-~#~+|1|y|@prof2|n| 0.00||mod=C  ||all|4
-~#~+|1|y|@prof2|n|-0.10||mod=M  ||all|4
-~#/~/ - User class 3
-~#~+|1|y|@prof3|n| 0.00||mod=BPL||all|4
-~#~+|1|y|@prof3|n|-0.10||mod=EQ ||all|4
-~#~+|1|y|@prof3|n| 0.00||mod=C  ||all|4
-~#~+|1|y|@prof3|n|-0.25||mod=M  ||all|4
-~#q
+~#~/ Productivity bonus - IVT weight reduction for seating passenger by user class and mode
+~# @prof1/2/3 values are now batched in from inputs/productivity_bonus_by_line_id.csv
+~# by Build_TOD_Transit_CT_RAMP3.mac (NMP 5/28/14)
 ~/ Geography impacts on productivity - stop frequency and boarding/alighting passengers
 2.41
 ~+|1|y|@prof3|n|@prof3+0.01||mod=BPL||@zone=1,80|or @zonej=1,80||4
@@ -242,15 +223,13 @@ q
 q
 ~/ STATION CLEANLINESS INDEX
 ~/ Fixed component by station type (1.00=ideal, 0.00=worst)
-~#~r81=0.80 /bus stops: pole, shelter
-~#~r82=0.85 /bus plaza
-~#~r83=0.90 /CTA, Metra station
-~#~r84=0.95 /Metra terminal station
 2.41
-~#~+|1|y|@clnsf|n|%r81%||all|4
-~#~+|1|y|@clnsf|n|%r82%||@bstyp=3|@rstyp=3||4
-~#~+|1|y|@clnsf|n|%r83%||@bstyp=4|@rstyp=4||4
-~#~+|1|y|@clnsf|n|%r84%||@bstyp=5|@rstyp=5||4
+~# Modified clnsf calculation to allow continuous @bstyp/@rstyp values,
+~# defined to match original specifications below (NMP 5/28/14):
+~#   ~r81=0.80 /bus stops: pole (1), shelter (2)
+~#   ~r82=0.85 /bus plaza (3)
+~#   ~r83=0.90 /CTA, Metra station (4)
+~#   ~r84=0.95 /Metra terminal station (5)
 ~+|1|y|@clnsf|n|(0.7+0.05*@bstyp).max.(0.7+0.05*@rstyp).max.0.8||all|4
 q
 ~/ Variable component as multiplier on 10-logged number of passengers
@@ -263,12 +242,8 @@ q
 ~r90=1.20  /extra wait time weight per deviation from 1.00=ideal
 / Station cleanliness policy impact variable by station type: 1.00=baseline, 0.00=clean completely
 2.41
-~#~+|1|y|@clnim|n|1.00||@bstyp=1|@rstyp=1||4
-~#~+|1|y|@clnim|n|1.00||@bstyp=2|@rstyp=2||4
-~#~+|1|y|@clnim|n|1.00||@bstyp=3|@rstyp=3||4
-~#~+|1|y|@clnim|n|1.00||@bstyp=4|@rstyp=4||4
-~#~+|1|y|@clnim|n|1.00||@bstyp=5|@rstyp=5||4
-~+|1|y|@clnim|n|1.00||all|4
+~# Modified @clnim calculation to allow continuous @bstyp/@rstyp values (NMP 5/28/14):
+~+|1|y|@clnim|n|1.00||@bstyp=1.00,6.00|@rstyp=1.00,6.00||4
 q
 ~x=1
 ~:EQUILIBRATION LOOP
@@ -1305,16 +1280,13 @@ q
 2.41
 ~+|1|y|@toboa |n|@borav||4|all|all|4
 ~+|1|y|@toalij|n|@trvav+@boravn-@trvavn||4|all|all|4
-~#~+|1|y|@clnsv |n|%r85%*log10(1+@toboa+@toali)||@bstyp=1,2|@rstyp=1,2||4
-~#~+|1|y|@clnsv |n|%r86%*log10(1+@toboa+@toali)||@bstyp=3  |@rstyp=3  ||4
-~#~+|1|y|@clnsv |n|%r87%*log10(1+@toboa+@toali)||@bstyp=4  |@rstyp=4  ||4
-~#~+|1|y|@clnsv |n|%r88%*log10(1+@toboa+@toali)||@bstyp=5  |@rstyp=5  ||4
+~# Modified @clnsv calculation to allow continuous @bstyp/@rstyp values (NMP 5/28/14):
 ~+|1|y|@clnsv |n|((-0.01*(@bstyp.ge.2.5)).min.(-0.01*(@rstyp.ge.2.5)))*log10(1+@toboa+@toali)||all|4
 ~+|1|y|@clnst |n|1-(1-(@clnsf-@clnsv))*@clnim||all|4
 q
 ~/ - Station cleanliness summary by station type:
 2.41
-~# Changed following from discrete values to ranges. NMP 5/27/14
+~# Modified @clnst min/max calculations to allow continuous @bstyp/@rstyp values (NMP 5/28/14):
 ~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
 ~+|2|ms999|MinCln|Min Cleanliness||3|ms998|MaxCln|Max Cleanliness||1
 ~+|1|n|@clnst||@bstyp=1.00,6.00|@rstyp=1.00,6.00||5
