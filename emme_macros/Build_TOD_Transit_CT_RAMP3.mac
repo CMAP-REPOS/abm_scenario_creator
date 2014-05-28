@@ -2,16 +2,16 @@
 ~# BUILD_TOD_TRANSIT_CT_RAMP
 ~#   Based on BUILD_TOD_TRANSIT of Craig Heither, last revised 02/13/2012
 ~#   Adjusted for CT-RAMP by Peter Vovsha, last revised 12/15/2012
-~#   Modifications by Noel Peterson for Transit Modernization Model, 04/16/2014
+~#   Modifications by Noel Peterson for Transit Modernization Model, 05/28/2014
 ~#  ************************************************************************************************
 ~#    Macro used to create time-of-day-specific transit network for assignment & skimming
 ~#    Segment variable @hwytm is populated with congested travel time
 ~#
-~#    Must provide 3 arguments: 
-~#         - 3-digit transit scenario (100 for 2010) 
+~#    Must provide 3 arguments:
+~#         - 3-digit transit scenario (100 for 2010)
 ~#         - TOD period (1-8) to indicate which TOD transit networks wil be built and
 ~#           which highway scenario to import auto times from (must exist in EMME bank and be assigned)
-~#         - Folder where the input files are stored  
+~#         - Folder where the input files are stored
 ~#           (e.g. "~<build_tod_transit_CT_RAMP 100 1 2 \CMAP\Transit_ABM\EMME\TOD_transit\transit")
 ~#
 ~#  ************************************************************************************************
@@ -95,7 +95,7 @@ batchin=%t2%\%1%\bus.itinerary_%y%
 ~+; 2; 1; @perbf; Final boarding time perception factor; 1
 ~+; 2; 1; @pef13; Pedestr Environ Factor 1=best, 3=worst; 0
 ~+; 2; 1; @clnsf; Station cleanliness fixed index 0-1; 1
-~+; 2; 1; @clnsv; Station cleanliness variable index 0-1; 0 
+~+; 2; 1; @clnsv; Station cleanliness variable index 0-1; 0
 ~+; 2; 1; @clnim; Station cleanliness policy impact 0-1; 1
 ~+; 2; 1; @clnst; Station cleanliness total index 0-1; 1
 ~+; 2; 1; @toboa; Total boardings at station; 0
@@ -115,7 +115,7 @@ batchin=%t2%\%1%\bus.itinerary_%y%
 ~+; 2; 4; @ivtpf; Line in-vehicle time perception factor; 1
 ~+; 2; 4; @hdwef; Effective hdwy for capacity constraint; 0
 ~+; 2; 4; @hdwem; Effective hdwy multiplier; 1
-~+; 2; 4; @crowf; Crowding inconvenience factor; 0 
+~+; 2; 4; @crowf; Crowding inconvenience factor; 0
 ~+; 2; 4; @ltime; line service time in minutes; 0
 ~+; 2; 4; @hwytm; per. %y% congested hwy time from %y%; 0
 ~+; 2; 4; @zfare; incremental zone fare; 0
@@ -140,8 +140,8 @@ batchin=%t2%\%1%\bus.itinerary_%y%
 ~+; 2; 4; @ivtsp; Prob of having a seat multiplied by IVT; 1
 ~+; 2; 4; @trvav; Transit volume averaged; 0
 ~+; 2; 4; @borav; Boardings averaged; 0
-~+; 2; 4; @cudis; Cumulative distance from line start; 0 
-~+; 2; 4; @eavwt; Extra average wait due to unreliability; 0 
+~+; 2; 4; @cudis; Cumulative distance from line start; 0
+~+; 2; 4; @eavwt; Extra average wait due to unreliability; 0
 ~+; 2; 4; @cumbo; Cumulative boardings from line start; 0
 ~+; 2; 4; @clnob; Cleanliness on board IVT factor; 0
 ~+; 2; 4; @ivtcl; Clean on board factor multiplied by IVT; 0
@@ -173,7 +173,7 @@ batchin=%t2%\%1%\railseg.extatt_%y%
 2.41
 ~+; 3; @ltime; n; all; all; 1,2,3,4; n; y
 ~+; 3; @zfare; n; all; all; 1,2,3,5; n; y; q
-~# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+~# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ~# BATCHIN 17-12-0001 PARK-N-RIDE PARKING FILE BEGINNING C12Q1 scenario 200
 ~+;~?x=100;~$>skip
 batchin=%t2%\17120001_parking.csv
@@ -181,7 +181,7 @@ batchin=%t2%\17120001_parking.csv
 ~+; 3; @pspac; n; all; 1,2; n; y
 ~+; 3; @pcost; n; all; 1,3; n; y; q
 ~:skip
-~# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+~# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ~# BATCHIN CERMAK ROAD BRT PARKING FILE FROM C03 (NO LONGER USED)
 ~$>skip
 batchin=%t2%\cermakbrt_parking.csv
@@ -216,16 +216,16 @@ batchin=%t2%\rail_node_pef.csv
 ~+|2|%y%|timau|ul1|all
 ~+|1|y|@hwytm|n|ul1||all|all|4|q
 ~/ SET TRANSIT TIME FUNCTION (ft1=normal, ft2-BRT)
-/ Delete existing functions  
+/ Delete existing functions
 4.12
-~+; 4; ft1,ft2; 
+~+; 4; ft1,ft2;
 ~?e
 ~+|q|~$>ADD FUNCTIONS
 ~+|y|q
 / Add ft1 and ft2 both reference us1
 ~:ADD FUNCTIONS
 4.12
-~+; 2; ft1; us1; ; ft2; us1; ; ; q 
+~+; 2; ft1; us1; ; ft2; us1; ; ; q
 / SET LINE-HAUL TIMES (us1)
 / THIS IS WHERE BRT IS DIFFERENTIATED FROM REGULAR TRANSIT
 2.41
@@ -264,25 +264,13 @@ q
 /  1=staircase (worst) is default
 /  2=low floor/kneeling
 /  3=level w/platform (best)
-~#~<<%t2%\boarding_ease_by_line_id.csv
-~#2.41
-~#~t9=~@
-~#~:BOARDING EASE LOOP
-~#~t9=~@
-~#~?e
-~#~$>EXIT BOARDING EASE LOOP
-~#~+|1|y|@easeb|n|%t9_-4%||%t9_3%_|%t9_3%__|%t9_3%___||4
-~#~$BOARDING EASE LOOP
-~#~:EXIT BOARDING EASE LOOP
-~#q
+~# Modified input file specifies @easeb for each vehicle, not just by mode/line (NMP 5/28/14):
 batchin=%t2%\boarding_ease_by_line_id.csv
 2.41
 ~+|3|@easeb|n|all|1,2|n|y
 q
 2.41
-~#~+|1|y|@easb1|n|1||@easeb=1,1||all|4
-~#~+|1|y|@easb2|n|1||@easeb=2,2||all|4
-~#~+|1|y|@easb3|n|1||@easeb=3,3||all|4
+~# Modified @easb1/2/3 calculations to allow continuous @easeb values (NMP 5/28/14):
 ~+|1|y|@easb1|n|1||@easeb=1.00,1.49||all|4
 ~+|1|y|@easb2|n|1||@easeb=1.50,2.49||all|4
 ~+|1|y|@easb3|n|1||@easeb=2.50,4.00||all|4
