@@ -47,34 +47,179 @@ class ABM_DB(object):
         self.trips_joint_csv = os.path.join(abm_output_dir, 'jointTripData_1.csv')
 
         # Create DB
+        print 'Creating database...'
         self.conn = sqlite3.connect(':memory:')
         self.c = self.conn.cursor()
-        self.c.execute('''CREATE TABLE households
-                  (hh_id, maz, size)''')
-        self.c.execute('''CREATE TABLE tours
-                  (hh_id)''')
-        self.c.execute('''CREATE TABLE trips
-                  (hh_id)''')
 
         # Load data from CSVs
+        # -- Households table
+        print 'Loading households...'
+        self.c.execute('''CREATE TABLE households (
+            id INTEGER PRIMARY KEY,
+            sz INTEGER,
+            size INTEGER
+        )''')
 
+        with open(self.hh_data_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                sz = int(d['maz'])
+                size = int(d['size'])
+                db_row = (hh_id, sz, size)
+                self.c.execute('INSERT INTO households VALUES (?,?,?)', db_row)
+
+        # -- Tours table
+        print 'Loading tours...'
+        self.c.execute('''CREATE TABLE tours (
+            id TEXT PRIMARY KEY,
+            hh_id INTEGER,
+            participants TEXT,
+            pers_id TEXT,
+            is_joint BOOLEAN,
+            category TEXT,
+            purpose TEXT,
+            sz_o INTEGER,
+            sz_d INTEGER,
+            mode INTEGER,
+            FOREIGN KEY (hh_id) REFERENCES households(id)
+        )''')
+
+        with open(self.tours_indiv_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                participants = str(d['person_num'])
+                pers_id = participants
+                tour_num = int(d['tour_id'])
+                purpose = str(d['tour_purpose'])
+                category = str(d['tour_category'])
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                mode = int(d['tour_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
+                is_joint = False
+
+                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
+                self.c.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+
+        with open(self.tours_joint_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                participants = str(d['tour_participants'])
+                pers_id = 'J'
+                tour_num = int(d['tour_id'])
+                purpose = str(d['tour_purpose'])
+                category = str(d['tour_category'])
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                mode = int(d['tour_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
+                is_joint = True
+
+                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
+                self.c.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+
+        # -- Trips table
+        print 'Loading trips...'
+        self.c.execute('''CREATE TABLE trips (
+            id TEXT PRIMARY KEY,
+            tour_id TEXT,
+            hh_id INTEGER,
+            pers_id TEXT,
+            is_joint BOOLEAN,
+            inbound BOOLEAN,
+            purpose_o TEXT,
+            purpose_d TEXT,
+            sz_o INTEGER,
+            sz_d INTEGER,
+            mode INTEGER,
+            FOREIGN KEY (tour_id) REFERENCES tours(id),
+            FOREIGN KEY (hh_id) REFERENCES households(id)
+        )''')
+
+        with open(self.trips_indiv_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                pers_id = str(d['person_num'])
+                tour_num = int(d['tour_id'])
+                purpose_t = str(d['tour_purpose'])
+                inbound = int(d['inbound'])
+                stop_id = int(d['stop_id']) + 1  # to avoid all the -1's
+                purpose_o = str(d['orig_purpose'])
+                purpose_d = str(d['dest_purpose'])
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                mode = int(d['trip_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
+                trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
+                is_joint = False
+
+                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
+                self.c.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
+
+        with open(self.trips_joint_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                pers_id = 'J'
+                tour_num = int(d['tour_id'])
+                purpose_t = str(d['tour_purpose'])
+                inbound = int(d['inbound'])
+                stop_id = int(d['stop_id']) + 1  # to avoid all the -1's
+                purpose_o = str(d['orig_purpose'])
+                purpose_d = str(d['dest_purpose'])
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                mode = int(d['trip_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
+                trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
+                is_joint = True
+
+                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
+                self.c.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         self.conn.commit()
         return
 
-    def close():
+    def close(self):
         ''' Close the DB. '''
         self.conn.close()
 
+    def create_objects(self):
+        ''' Convert SQL rows into Python objects. '''
+        households = []
+
+        print 'Creating household objects...'
+        self.c.execute('SELECT * FROM households')
+        for row in self.c:
+            households.append(Household(*row))
+
+        print 'Creating tour objects...'
+        for hh in households:
+            self.c.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,))
+            for row in self.c:
+                hh.add_tour(Tour(*row))
+
+        print 'Creating trip objects...'
+        for hh in households:
+            for tour in hh.tours:
+                self.c.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,))
+                for row in self.c:
+                    tour.add_trip(Trip(*row))
+
+        return households
 
 
 class Household(object):
     ''' A modeled household. '''
-    def __init__(self, hh_id, maz, size):
-        self.id = int(hh_id)
-        self.sz = int(maz)
-        self.size = int(size)
-        self.tours = {}
+    def __init__(self, hh_id, sz, size):
+        self.id = hh_id
+        self.sz = sz
+        self.size = size
+        self.tours = []
         return
 
     def __str__(self):
@@ -82,25 +227,24 @@ class Household(object):
 
     def add_tour(self, tour):
         ''' Add a tour to the household. '''
-        self.tours[tour.id] = tour
+        self.tours.append(tour)
         return
 
 
 class Tour(object):
     ''' A modeled tour. '''
-    def __init__(self, hh_id, tour_participants, tour_id, tour_category, tour_purpose, orig_maz, dest_maz, tour_mode):
-        self.hh_id = int(hh_id)
-        self.tour_id = int(tour_id)
-        self.participants = [int(p) for p in str(tour_participants).split()]
-        self.pers_id = str(self.participants[0]) if len(self.participants) == 1 else 'J'  # mark joint trips with 'J'
-        self.is_joint = True if self.pers_id == 'J' else False
-        self.category = str(tour_category)
-        self.purpose = str(tour_purpose)
-        self.sz_o = int(orig_maz)
-        self.sz_d = int(dest_maz)
-        self.mode = int(tour_mode)
-        self.id = '{0}-{1}-{2}-{3}'.format(self.hh_id, self.pers_id, self.tour_id, self.purpose)
-        self.trips = {}
+    def __init__(self, tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode):
+        self.id = tour_id
+        self.hh_id = hh_id
+        self.participants = [int(p) for p in participants.split()]
+        self.pers_id = pers_id
+        self.is_joint = is_joint
+        self.category = category
+        self.purpose = purpose
+        self.sz_o = sz_o
+        self.sz_d = sz_d
+        self.mode = mode
+        self.trips = []
         return
 
     def __str__(self):
@@ -108,26 +252,24 @@ class Tour(object):
 
     def add_trip(self, trip):
         ''' Add a trip to the tour. '''
-        self.trips[trip.id] = trip
+        self.trips.append(trip)
         return
 
 
 class Trip(object):
     ''' A modeled trip. '''
-    def __init__(self, hh_id, person_num, tour_id, inbound, stop_id, tour_purpose, orig_purpose, dest_purpose, orig_maz, dest_maz, trip_mode):
-        self.hh_id = int(hh_id)
-        self.pers_id = str(person_num)
-        self.is_joint = True if self.pers_id == 'J' else False
-        self.tour_id = int(tour_id)
-        self.stop_id = int(stop_id) + 1  # to avoid all the -1's
-        self.inbound = int(inbound)
-        self.purpose_t = str(tour_purpose)
-        self.purpose_o = str(orig_purpose)
-        self.purpose_d = str(dest_purpose)
-        self.sz_o = int(orig_maz)
-        self.sz_d = int(dest_maz)
-        self.mode = int(trip_mode)
-        self.id = '{0}-{1}-{2}-{3}-{4}-{5}'.format(self.hh_id, self.pers_id, self.tour_id, self.purpose_t, self.inbound, self.stop_id)
+    def __init__(self, trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode):
+        self.id = trip_id
+        self.tour_id = tour_id
+        self.hh_id = hh_id
+        self.pers_id = pers_id
+        self.is_joint = is_joint
+        self.inbound = inbound
+        self.purpose_o = purpose_o
+        self.purpose_d = purpose_d
+        self.sz_o = sz_o
+        self.sz_d = sz_d
+        self.mode = mode
         return
 
     def __str__(self):
@@ -137,63 +279,7 @@ class Trip(object):
 
 ### SCRIPT MODE ###
 if __name__ == '__main__':
-
     abm_output_dir = r'Y:\nmp\basic_template_20140521\model\outputs'
     ABM = ABM_DB(abm_output_dir)
-    #os.chdir(abm_output_dir)
-    #hh_data_csv = 'hhData_1.csv'
-    #tours_indiv_csv = 'indivTourData_1.csv'
-    #tours_joint_csv = 'jointTourData_1.csv'
-    #trips_indiv_csv = 'indivTripData_1.csv'
-    #trips_joint_csv = 'jointTripData_1.csv'
-    #
-    ## Load trips
-    #print 'Loading trips...'
-    #trips = {}
-    #
-    #with open(trips_indiv_csv, 'rb') as csvfile:
-    #    r = csv.DictReader(csvfile)
-    #    for trip in r:
-    #        trip_obj = Trip(trip['hh_id'], trip['person_num'], trip['tour_id'], trip['inbound'], trip['stop_id'], trip['tour_purpose'], trip['orig_purpose'], trip['dest_purpose'], trip['orig_maz'], trip['dest_maz'], trip['trip_mode'])
-    #        trips[trip_obj.id] = trip_obj
-    #print 'Individual trips: ', len(trips)  # 1,817,976 in base run CSV
-    #
-    #with open(trips_joint_csv, 'rb') as csvfile:
-    #    r = csv.DictReader(csvfile)
-    #    for trip in r:
-    #        trip_obj = Trip(trip['hh_id'], 'J', trip['tour_id'], trip['inbound'], trip['stop_id'], trip['tour_purpose'], trip['orig_purpose'], trip['dest_purpose'], trip['orig_maz'], trip['dest_maz'], trip['trip_mode'])
-    #        trips[trip_obj.id] = trip_obj
-    #print 'Joint trips: ', len([1 for trip_id in trips if trips[trip_id].is_joint])  # 101,726 in base run CSV
-    #print 'Total trips: ', len(trips)
-    #print ' '
-    #
-    ## Load tours
-    #print 'Loading tours...'
-    #tours = {}
-    #
-    #with open(tours_indiv_csv, 'rb') as csvfile:
-    #    r = csv.DictReader(csvfile)
-    #    for tour in r:
-    #        tour_obj = Tour(tour['hh_id'], tour['person_num'], tour['tour_id'], tour['tour_category'], tour['tour_purpose'], tour['orig_maz'], tour['dest_maz'], tour['tour_mode'])
-    #        tours[tour_obj.id] = tour_obj
-    #print '- Individual tours: ', len(trips)  # 720,369 in base run CSV
-    #
-    #with open(tours_joint_csv, 'rb') as csvfile:
-    #    r = csv.DictReader(csvfile)
-    #    for tour in r:
-    #        tour_obj = Tour(tour['hh_id'], tour['tour_participants'], tour['tour_id'], tour['tour_category'], tour['tour_purpose'], tour['orig_maz'], tour['dest_maz'], tour['tour_mode'])
-    #        tours[tour_obj.id] = tour_obj
-    #print '- Joint tours: ', len([1 for tour_id in tours if tours[tour_id].is_joint])  # 50,863 in base run CSV
-    #print '- Total tours: ', len(tours)
-    #print ' '
-    #
-    ## Load households
-    #print 'Loading households...'
-    #households = {}
-    #
-    #with open(hh_data_csv, 'rb') as csvfile:
-    #    r = csv.DictReader(csvfile)
-    #    for hh in r:
-    #        hh_obj = Household(hh['hh_id'], hh['maz'], hh['size'])
-    #        households[hh_obj.id] = hh_obj
-    #print '- Households: ', len(households)  # 193,316 in base run CSV
+    households = ABM.create_objects()
+    ABM.close()
