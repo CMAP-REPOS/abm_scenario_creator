@@ -205,36 +205,36 @@ class ABM_DB(object):
         ''' Close the DB. '''
         self.conn.close()
 
-    def create_objects(self):
-        ''' Convert SQL rows into Python objects. '''
-        households = []
-        counter = {'HH': 0, 'TOUR': 0, 'TRIP': 0}
-
-        print 'Creating household objects...'
-        self.c.execute('SELECT * FROM households')
-        for row in self.c:
-            households.append(Household(*row))
-            counter['HH'] += 1
-            if counter['HH'] % 10000 == 0: print counter['HH']
-
-        print 'Creating tour objects...'
-        for hh in households:
-            self.c.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,))
-            for row in self.c:
-                hh.add_tour(Tour(*row))
-                counter['TOUR'] += 1
-                if counter['TOUR'] % 10000 == 0: print counter['TOUR']
-
-        print 'Creating trip objects...'
-        for hh in households:
-            for tour in hh.tours:
-                self.c.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,))
-                for row in self.c:
-                    tour.add_trip(Trip(*row))
-                    counter['TRIP'] += 1
-                    if counter['TRIP'] % 10000 == 0: print counter['TRIP']
-
-        return households
+    #def create_objects(self):
+    #    ''' Convert SQL rows into Python objects. SUPER SLOW!!! '''
+    #    households = []
+    #    counter = {'HH': 0, 'TOUR': 0, 'TRIP': 0}
+    #
+    #    print 'Creating household objects...'
+    #    self.c.execute('SELECT * FROM households')
+    #    for row in self.c:
+    #        households.append(Household(*row))
+    #        counter['HH'] += 1
+    #        if counter['HH'] % 10000 == 0: print counter['HH']
+    #
+    #    print 'Creating tour objects...'
+    #    for hh in households:
+    #        self.c.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,))
+    #        for row in self.c:
+    #            hh.add_tour(Tour(*row))
+    #            counter['TOUR'] += 1
+    #            if counter['TOUR'] % 10000 == 0: print counter['TOUR']
+    #
+    #    print 'Creating trip objects...'
+    #    for hh in households:
+    #        for tour in hh.tours:
+    #            self.c.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,))
+    #            for row in self.c:
+    #                tour.add_trip(Trip(*row))
+    #                counter['TRIP'] += 1
+    #                if counter['TRIP'] % 10000 == 0: print counter['TRIP']
+    #
+    #    return households
 
 
 class Household(object):
@@ -305,5 +305,5 @@ class Trip(object):
 if __name__ == '__main__':
     abm_output_dir = r'Y:\nmp\basic_template_20140521\model\outputs'
     ABM = ABM_DB(abm_output_dir)
-    households = ABM.create_objects()
+    #households = ABM.create_objects()
     ABM.close()
