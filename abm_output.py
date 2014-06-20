@@ -69,6 +69,9 @@ class ABM_DB(object):
                 db_row = (hh_id, sz, size)
                 self.c.execute('INSERT INTO households VALUES (?,?,?)', db_row)
 
+        self.hh_count = sum((1 for r in self.c.execute('SELECT * FROM households')))
+        print '-- Households: ', self.hh_count
+
         # -- Tours table
         print 'Loading tours...'
         self.c.execute('''CREATE TABLE tours (
@@ -120,6 +123,13 @@ class ABM_DB(object):
 
                 db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
                 self.c.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+
+        self.tour_i_count = sum((1 for r in self.c.execute('SELECT * FROM tours WHERE is_joint=0')))
+        self.tour_j_count = sum((1 for r in self.c.execute('SELECT * FROM tours WHERE is_joint=1')))
+        self.tour_count = self.tour_i_count + self.tour_j_count
+        print '-- Tours (indiv): ', self.tour_i_count
+        print '-- Tours (joint): ', self.tour_j_count
+        print '-- Tours (total): ', self.tour_count
 
         # -- Trips table
         print 'Loading trips...'
@@ -181,6 +191,13 @@ class ABM_DB(object):
                 db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
                 self.c.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
+        self.trip_i_count = sum((1 for r in self.c.execute('SELECT * FROM trips WHERE is_joint=0')))
+        self.trip_j_count = sum((1 for r in self.c.execute('SELECT * FROM trips WHERE is_joint=1')))
+        self.trip_count = self.trip_i_count + self.trip_j_count
+        print '-- Trips (indiv): ', self.trip_i_count
+        print '-- Trips (joint): ', self.trip_j_count
+        print '-- Trips (total): ', self.trip_count
+
         self.conn.commit()
         return
 
@@ -191,17 +208,22 @@ class ABM_DB(object):
     def create_objects(self):
         ''' Convert SQL rows into Python objects. '''
         households = []
+        counter = {'HH': 0, 'TOUR': 0, 'TRIP': 0}
 
         print 'Creating household objects...'
         self.c.execute('SELECT * FROM households')
         for row in self.c:
             households.append(Household(*row))
+            counter['HH'] += 1
+            if counter['HH'] % 10000 == 0: print counter['HH']
 
         print 'Creating tour objects...'
         for hh in households:
             self.c.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,))
             for row in self.c:
                 hh.add_tour(Tour(*row))
+                counter['TOUR'] += 1
+                if counter['TOUR'] % 10000 == 0: print counter['TOUR']
 
         print 'Creating trip objects...'
         for hh in households:
@@ -209,6 +231,8 @@ class ABM_DB(object):
                 self.c.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,))
                 for row in self.c:
                     tour.add_trip(Trip(*row))
+                    counter['TRIP'] += 1
+                    if counter['TRIP'] % 10000 == 0: print counter['TRIP']
 
         return households
 
