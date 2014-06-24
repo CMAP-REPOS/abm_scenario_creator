@@ -37,6 +37,52 @@ class ABM(object):
         14: 'School bus'
     }
 
+    tod_by_index = [
+        None,                  # No CT-RAMP period 0
+        1,1,1,                 # CT-RAMP 1-3: [3am, 6am)
+        2,2,                   # CT-RAMP 4-5: [6am, 7am)
+        3,3,3,3,               # CT-RAMP 6-9: [7am, 9am)
+        4,4,                   # CT-RAMP 10-11: [9am, 10am)
+        5,5,5,5,5,5,5,5,       # CT-RAMP 12-19: [10am, 2pm)
+        6,6,6,6,               # CT-RAMP 20-23: [2pm, 4pm)
+        7,7,7,7,               # CT-RAMP 24-27: [4pm, 6pm)
+        8,8,8,8,               # CT-RAMP 28-31: [6pm, 8pm)
+        1,1,1,1,1,1,1,1,1,1,1  # CT-RAMP 32-42: [8pm, 3am)
+    ]
+
+    ## Dict version of tod_by_index. Which is better?
+    #tod_for_period = {
+    #    1:1, 2:1, 3:1,
+    #    4:2, 5:2,
+    #    6:3, 7:3, 8:3, 9:3,
+    #    10:4, 11:4,
+    #    12:5, 13:5, 14:5, 15:5, 16:5, 17:5, 18:5, 19:5,
+    #    20:6, 21:6, 22:6, 23:6,
+    #    24:7, 25:7, 26:7, 27:7,
+    #    28:8, 29:8, 30:8, 31:8,
+    #    32:1, 33:1, 34:1, 35:1, 36:1, 37:1, 38:1, 39:1, 40:1, 41:1, 42:1
+    #}
+
+    # Class methods
+    @classmethod
+    def _get_mode_str(cls, mode_num):
+        ''' Return description of a mode code. '''
+        return cls.modes[mode_num]
+
+    @classmethod
+    def _convert_time_period(cls, in_period, ctramp_to_emme=True):
+        ''' Convert CT-RAMP time period to Emme time-of-day, or vice versa.
+            Uses a list with values corresponding to Emme TOD and index values
+            corresponding to CT-RAMP periods: all 30-minute intervals, except
+            some in TOD 1 (overnight). '''
+        if ctramp_to_emme:
+            #return cls.tod_for_period[period]
+            return cls.tod_by_index[in_period]
+        else:
+            #return [index for period, tod in tod_for_period.iteritems() if tod == in_period]
+            return [index for index, tod in enumerate(cls.tod_by_index) if tod == in_period]
+
+    # Instance initialization & methods
     def __init__(self, abm_dir, sample_rate=0.05):
         # Set model-specific properties
         self.dir = abm_dir
@@ -207,7 +253,6 @@ class ABM(object):
     def __str__(self):
         return '[ABM: {0} ({1:.0%} sample)]'.format(self.name, self.sample_rate)
 
-
     def close_db(self):
         ''' Close the DB. '''
         self._con.close()
@@ -219,11 +264,6 @@ class ABM(object):
         if where_clause:
             query += ' WHERE {0}'.format(where_clause)
         return float(self._con.execute(query).fetchone()[0])
-
-    @classmethod
-    def _get_mode_str(cls, mode_num):
-        ''' Return description of a mode code. '''
-        return cls.modes[mode_num]
 
     def print_mode_share(self, table):
         ''' Display the mode share of trips or tours. '''
@@ -345,13 +385,17 @@ class Comparison(object):
 ### SCRIPT MODE ###
 def main():
     base_dir = r'Y:\nmp\basic_template_20140521'
-    test_dir = r'Y:\nmp\basic_template_20140521'
     base_abm = ABM(base_dir)
     print base_abm
+
+    test_dir = r'Y:\nmp\basic_template_20140527'
     test_abm = ABM(test_dir)
     print test_abm
+
     comparison = Comparison(base_abm, test_abm)
     print comparison
+
+    return None
 
 if __name__ == '__main__':
     main()
