@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 6/23/14
+    Revised: 6/24/14
     ---------------------------------------------------------------------------
     A script for reading ABM output files into a database and/or Python objects
     for querying and summarization.
@@ -15,45 +15,49 @@ import sqlite3
 
 
 class ABM(object):
-    ''' A wrapper for a SQLite DB storing ABM output data. '''
-    def __init__(self, abm_dir):
-        # Set paths to CSVs
+    ''' A class for loading ABM model run output data into a SQLite database.
+        Initialized with path (parent directory of 'model') and model run
+        sample rate (default 0.05). '''
+
+    # Set model-agnostic variables
+    modes = {
+        1: 'Drive alone free',
+        2: 'Drive alone pay',
+        3: 'Shared ride 2 free',
+        4: 'Shared ride 2 pay',
+        5: 'Shared ride 3+ free',
+        6: 'Shared ride 3+ pay',
+        7: 'Walk',
+        8: 'Bike',
+        9: 'Walk to local transit',
+        10: 'Walk to premium transit',
+        11: 'Drive to local transit',
+        12: 'Drive to premium transit',
+        13: 'Taxi',
+        14: 'School bus'
+    }
+
+    def __init__(self, abm_dir, sample_rate=0.05):
+        # Set model-specific properties
         self.dir = abm_dir
-        self._output_dir = os.path.join(self.dir, 'outputs')
+        self.sample_rate = sample_rate
+        self.name = os.path.basename(self.dir)
+        self._output_dir = os.path.join(self.dir, 'model', 'outputs')
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
         self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
         self._trips_indiv_csv = os.path.join(self._output_dir, 'indivTripData_1.csv')
         self._trips_joint_csv = os.path.join(self._output_dir, 'jointTripData_1.csv')
 
-        # Set model-agnostic variables
-        self.modes = {
-            1: 'Drive alone free',
-            2: 'Drive alone pay',
-            3: 'Shared ride 2 free',
-            4: 'Shared ride 2 pay',
-            5: 'Shared ride 3+ free',
-            6: 'Shared ride 3+ pay',
-            7: 'Walk',
-            8: 'Bike',
-            9: 'Walk to local transit',
-            10: 'Walk to premium transit',
-            11: 'Drive to local transit',
-            12: 'Drive to premium transit',
-            13: 'Taxi',
-            14: 'School bus'
-        }
-
         # Create DB
-        print 'Creating database...'
-        self._conn = sqlite3.connect(':memory:')
-        self._c = self._conn.cursor()
-        self._c.row_factory = sqlite3.Row
+        print 'Creating database for {0}...'.format(self.name)
+        self._con = sqlite3.connect(':memory:')
+        self._con.row_factory = sqlite3.Row
 
         # Load data from CSVs
         # -- Households table
         print 'Loading households...'
-        self._c.execute('''CREATE TABLE households (
+        self._con.execute('''CREATE TABLE households (
             id INTEGER PRIMARY KEY,
             sz INTEGER,
             size INTEGER
@@ -66,14 +70,14 @@ class ABM(object):
                 sz = int(d['maz'])
                 size = int(d['size'])
                 db_row = (hh_id, sz, size)
-                self._c.execute('INSERT INTO households VALUES (?,?,?)', db_row)
+                self._con.execute('INSERT INTO households VALUES (?,?,?)', db_row)
 
-        self.hh_count = self._count_rows('households')
-        print '-- Households: ', self.hh_count
+        self.households = self._count_rows('households')
+        print '-- Households: {0:>14,.0f}'.format(self.households)
 
         # -- Tours table
         print 'Loading tours...'
-        self._c.execute('''CREATE TABLE tours (
+        self._con.execute('''CREATE TABLE tours (
             id TEXT PRIMARY KEY,
             hh_id INTEGER,
             participants TEXT,
@@ -103,7 +107,7 @@ class ABM(object):
                 is_joint = False
 
                 db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
-                self._c.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
 
         with open(self._tours_joint_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -121,18 +125,18 @@ class ABM(object):
                 is_joint = True
 
                 db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
-                self._c.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
 
-        self.tour_count_indiv = self._count_rows('tours', 'is_joint=0')
-        self.tour_count_joint = self._count_rows('tours', 'is_joint=1')
-        self.tour_count = self.tour_count_indiv + self.tour_count_joint
-        print '-- Tours (indiv): ', self.tour_count_indiv
-        print '-- Tours (joint): ', self.tour_count_joint
-        print '-- Tours (total): ', self.tour_count
+        self.tours_indiv = self._count_rows('tours', 'is_joint=0')
+        self.tours_joint = self._count_rows('tours', 'is_joint=1')
+        self.tours = self.tours_indiv + self.tours_joint
+        print '-- Tours (indiv): {0:>11,.0f}'.format(self.tours_indiv)
+        print '-- Tours (joint): {0:>11,.0f}'.format(self.tours_joint)
+        print '-- Tours (total): {0:>11,.0f}'.format(self.tours)
 
         # -- Trips table
         print 'Loading trips...'
-        self._c.execute('''CREATE TABLE trips (
+        self._con.execute('''CREATE TABLE trips (
             id TEXT PRIMARY KEY,
             tour_id TEXT,
             hh_id INTEGER,
@@ -167,7 +171,7 @@ class ABM(object):
                 is_joint = False
 
                 db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
-                self._c.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         with open(self._trips_joint_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -188,34 +192,38 @@ class ABM(object):
                 is_joint = True
 
                 db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
-                self._c.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
-        self.trip_count_indiv = self._count_rows('trips', 'is_joint=0')
-        self.trip_count_joint = self._count_rows('trips', 'is_joint=1')
-        self.trip_count = self.trip_count_indiv + self.trip_count_joint
-        print '-- Trips (indiv): ', self.trip_count_indiv
-        print '-- Trips (joint): ', self.trip_count_joint
-        print '-- Trips (total): ', self.trip_count
+        self.trips_indiv = self._count_rows('trips', 'is_joint=0')
+        self.trips_joint = self._count_rows('trips', 'is_joint=1')
+        self.trips = self.trips_indiv + self.trips_joint
+        print '-- Trips (indiv): {0:>11,.0f}'.format(self.trips_indiv)
+        print '-- Trips (joint): {0:>11,.0f}'.format(self.trips_joint)
+        print '-- Trips (total): {0:>11,.0f}'.format(self.trips)
 
-        self._conn.commit()
+        self._con.commit()
         return
 
-    def close(self):
-        ''' Close the DB. '''
-        self._conn.close()
+    def __str__(self):
+        return '[ABM: {0} ({1:.0%} sample)]'.format(self.name, self.sample_rate)
 
-    def count_rows(self, table, where_clause=None):
+
+    def close_db(self):
+        ''' Close the DB. '''
+        self._con.close()
+
+    def _count_rows(self, table, where_clause=None):
         ''' Execute a SELECT COUNT(*) query on a table with optional where
             clause and return the integer result. '''
         query = 'SELECT COUNT(*) FROM {0}'.format(table)
         if where_clause:
             query += ' WHERE {0}'.format(where_clause)
-        self._c.execute(query)
-        return float(self._c.fetchone()[0])
+        return float(self._con.execute(query).fetchone()[0])
 
-    def get_mode_str(self, mode_num):
+    @classmethod
+    def _get_mode_str(cls, mode_num):
         ''' Return description of a mode code. '''
-        return self.modes[mode_num]
+        return cls.modes[mode_num]
 
     def print_mode_share(self, table):
         ''' Display the mode share of trips or tours. '''
@@ -223,12 +231,12 @@ class ABM(object):
         mode_share = {}
         for mode in sorted(self.modes.keys()):
             mode_share[mode] = self._count_rows(table, 'mode={0}'.format(mode)) / table_rows
-            print self.get_mode_str(mode), ': ', mode_share[mode] * 100
+            print '{0:.<30}{1:>7.2%}'.format(self._get_mode_str(mode), mode_share[mode])
         return
 
     def query(self, sql_query):
         ''' Execute a SQL query and return the cursor object. '''
-        return self._c.execute(sql_query)
+        return self._con.execute(sql_query)
 
     #def create_objects(self):
     #    ''' Convert SQL rows into Python objects. SUPER SLOW!!! '''
@@ -236,16 +244,14 @@ class ABM(object):
     #    counter = {'HH': 0, 'TOUR': 0, 'TRIP': 0}
     #
     #    print 'Creating household objects...'
-    #    self._c.execute('SELECT * FROM households')
-    #    for row in self._c:
+    #    for row in self._con.execute('SELECT * FROM households'):
     #        households.append(Household(*row))
     #        counter['HH'] += 1
     #        if counter['HH'] % 10000 == 0: print counter['HH']
     #
     #    print 'Creating tour objects...'
     #    for hh in households:
-    #        self._c.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,))
-    #        for row in self._c:
+    #        for row in self._con.execute('SELECT * FROM tours WHERE hh_id=?', (hh.id,)):
     #            hh.add_tour(Tour(*row))
     #            counter['TOUR'] += 1
     #            if counter['TOUR'] % 10000 == 0: print counter['TOUR']
@@ -253,8 +259,7 @@ class ABM(object):
     #    print 'Creating trip objects...'
     #    for hh in households:
     #        for tour in hh.tours:
-    #            self._c.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,))
-    #            for row in self._c:
+    #            for row in self._con.execute('SELECT * FROM trips WHERE tour_id=?', (tour.id,)):
     #                tour.add_trip(Trip(*row))
     #                counter['TRIP'] += 1
     #                if counter['TRIP'] % 10000 == 0: print counter['TRIP']
@@ -262,76 +267,91 @@ class ABM(object):
     #    return households
 
 
-class Household(object):
-    ''' A modeled household. '''
-    def __init__(self, hh_id, sz, size):
-        self.id = hh_id
-        self.sz = sz
-        self.size = size
-        self.tours = []
+class Comparison(object):
+    ''' A class for comparing two ABM objects. '''
+    def __init__(self, base_abm, test_abm):
+        self.base_abm = base_abm
+        self.test_abm = test_abm
         return
 
     def __str__(self):
-        return '[Household: {0}]'.format(self.id)
-
-    def add_tour(self, tour):
-        ''' Add a tour to the household. '''
-        self.tours.append(tour)
-        return
+        return '[Comparison: BASE {0}; TEST {1}]'.format(self.base_abm, self.test_abm)
 
 
-class Tour(object):
-    ''' A modeled tour. '''
-    def __init__(self, tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode):
-        self.id = tour_id
-        self.hh_id = hh_id
-        self.participants = [int(p) for p in participants.split()]
-        self.pers_id = pers_id
-        self.is_joint = is_joint
-        self._category = category
-        self.purpose = purpose
-        self.sz_o = sz_o
-        self.sz_d = sz_d
-        self.mode = mode
-        self.trips = []
-        return
-
-    def __str__(self):
-        return '[Tour: {0}]'.format(self.id)
-
-    def add_trip(self, trip):
-        ''' Add a trip to the tour. '''
-        self.trips.append(trip)
-        return
+#class Household(object):
+#    ''' A modeled household. '''
+#    def __init__(self, hh_id, sz, size):
+#        self.id = hh_id
+#        self.sz = sz
+#        self.size = size
+#        self.tours = []
+#        return
+#
+#    def __str__(self):
+#        return '[Household: {0}]'.format(self.id)
+#
+#    def add_tour(self, tour):
+#        ''' Add a tour to the household. '''
+#        self.tours.append(tour)
+#        return
 
 
-class Trip(object):
-    ''' A modeled trip. '''
-    def __init__(self, trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode):
-        self.id = trip_id
-        self.tour_id = tour_id
-        self.hh_id = hh_id
-        self.pers_id = pers_id
-        self.is_joint = is_joint
-        self.inbound = inbound
-        self.purpose_o = purpose_o
-        self.purpose_d = purpose_d
-        self.sz_o = sz_o
-        self.sz_d = sz_d
-        self.mode = mode
-        return
+#class Tour(object):
+#    ''' A modeled tour. '''
+#    def __init__(self, tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode):
+#        self.id = tour_id
+#        self.hh_id = hh_id
+#        self.participants = [int(p) for p in participants.split()]
+#        self.pers_id = pers_id
+#        self.is_joint = is_joint
+#        self._category = category
+#        self.purpose = purpose
+#        self.sz_o = sz_o
+#        self.sz_d = sz_d
+#        self.mode = mode
+#        self.trips = []
+#        return
+#
+#    def __str__(self):
+#        return '[Tour: {0}]'.format(self.id)
+#
+#    def add_trip(self, trip):
+#        ''' Add a trip to the tour. '''
+#        self.trips.append(trip)
+#        return
 
-    def __str__(self):
-        return '[Trip: {0}]'.format(self.id)
+
+#class Trip(object):
+#    ''' A modeled trip. '''
+#    def __init__(self, trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode):
+#        self.id = trip_id
+#        self.tour_id = tour_id
+#        self.hh_id = hh_id
+#        self.pers_id = pers_id
+#        self.is_joint = is_joint
+#        self.inbound = inbound
+#        self.purpose_o = purpose_o
+#        self.purpose_d = purpose_d
+#        self.sz_o = sz_o
+#        self.sz_d = sz_d
+#        self.mode = mode
+#        return
+#
+#    def __str__(self):
+#        return '[Trip: {0}]'.format(self.id)
 
 
 
 ### SCRIPT MODE ###
 def main():
-    _output_dir = r'Y:\nmp\basic_template_20140521\model\outputs'
-    ABM = ABM_DB(_output_dir)
-    #households = ABM.create_objects()
-    ABM.close()
+    base_dir = r'Y:\nmp\basic_template_20140521'
+    test_dir = r'Y:\nmp\basic_template_20140521'
+    base_abm = ABM(base_dir)
+    print base_abm
+    test_abm = ABM(test_dir)
+    print test_abm
+    comparison = Comparison(base_abm, test_abm)
+    print comparison
 
 if __name__ == '__main__':
     main()
