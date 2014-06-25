@@ -12,6 +12,7 @@ import os
 import sys
 import csv
 import sqlite3
+from inro.emme.database import emmebank as _eb
 
 
 class ABM(object):
@@ -89,6 +90,7 @@ class ABM(object):
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
+        self._emmebank_path = os.path.join(self.dir, 'model', 'CMAP-ABM', 'Database', 'emmebank')
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
         self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
@@ -114,6 +116,7 @@ class ABM(object):
             for d in r:
                 hh_id = int(d['hh_id'])
                 sz = int(d['maz'])
+                #zn =
                 size = int(d['size'])
                 db_row = (hh_id, sz, size)
                 self._con.execute('INSERT INTO households VALUES (?,?,?)', db_row)
@@ -133,6 +136,8 @@ class ABM(object):
             purpose TEXT,
             sz_o INTEGER,
             sz_d INTEGER,
+            tod_d INTEGER,
+            tod_a INTEGER,
             mode INTEGER,
             FOREIGN KEY (hh_id) REFERENCES households(id)
         )''')
@@ -148,12 +153,16 @@ class ABM(object):
                 category = str(d['tour_category'])
                 sz_o = int(d['orig_maz'])
                 sz_d = int(d['dest_maz'])
+                #zn_o =
+                #zn_d =
+                tod_d = self._convert_time_period(int(d['depart_period']))
+                tod_a = self._convert_time_period(int(d['arrive_period']))
                 mode = int(d['tour_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
                 is_joint = False
 
-                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
-                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, tod_d, tod_a, mode)
+                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         with open(self._tours_joint_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -166,12 +175,16 @@ class ABM(object):
                 category = str(d['tour_category'])
                 sz_o = int(d['orig_maz'])
                 sz_d = int(d['dest_maz'])
+                #zn_o =
+                #zn_d =
+                tod_d = self._convert_time_period(int(d['depart_period']))
+                tod_a = self._convert_time_period(int(d['arrive_period']))
                 mode = int(d['tour_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
                 is_joint = True
 
-                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, mode)
-                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, tod_d, tod_a, mode)
+                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         self.tours_indiv = self._count_rows('tours', 'is_joint=0')
         self.tours_joint = self._count_rows('tours', 'is_joint=1')
@@ -193,6 +206,11 @@ class ABM(object):
             purpose_d TEXT,
             sz_o INTEGER,
             sz_d INTEGER,
+            zn_o INTEGER,
+            zn_d INTEGER,
+            tap_o INTEGER,
+            tap_d INTEGER,
+            tod INTEGER,
             mode INTEGER,
             FOREIGN KEY (tour_id) REFERENCES tours(id),
             FOREIGN KEY (hh_id) REFERENCES households(id)
@@ -211,13 +229,18 @@ class ABM(object):
                 purpose_d = str(d['dest_purpose'])
                 sz_o = int(d['orig_maz'])
                 sz_d = int(d['dest_maz'])
+                zn_o = int(d['orig_taz'])
+                zn_d = int(d['dest_taz'])
+                tap_o = int(d['board_tap'])
+                tap_d = int(d['alight_tap'])
+                tod = self._convert_time_period(int(d['stop_period']))
                 mode = int(d['trip_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
                 is_joint = False
 
-                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
-                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d, tod, mode)
+                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         with open(self._trips_joint_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -232,13 +255,18 @@ class ABM(object):
                 purpose_d = str(d['dest_purpose'])
                 sz_o = int(d['orig_maz'])
                 sz_d = int(d['dest_maz'])
+                zn_o = int(d['orig_taz'])
+                zn_d = int(d['dest_taz'])
+                tap_o = int(d['board_tap'])
+                tap_d = int(d['alight_tap'])
+                tod = self._convert_time_period(int(d['stop_period']))
                 mode = int(d['trip_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
                 is_joint = True
 
-                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, mode)
-                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d, tod, mode)
+                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
 
         self.trips_indiv = self._count_rows('trips', 'is_joint=0')
         self.trips_joint = self._count_rows('trips', 'is_joint=1')
@@ -248,7 +276,12 @@ class ABM(object):
         print '-- Trips (total): {0:>11,.0f}'.format(self.trips)
 
         self._con.commit()
-        return
+
+        # Open Emmebank
+        self._emmebank = _eb.Emmebank(self._emmebank_path)
+        self._matrices = {}
+
+        return None  ### End of ABM.__init__() ###
 
     def __str__(self):
         return '[ABM: {0} ({1:.0%} sample)]'.format(self.name, self.sample_rate)
@@ -312,7 +345,7 @@ class Comparison(object):
     def __init__(self, base_abm, test_abm):
         self.base_abm = base_abm
         self.test_abm = test_abm
-        return
+        return None
 
     def __str__(self):
         return '[Comparison: BASE {0}; TEST {1}]'.format(self.base_abm, self.test_abm)
