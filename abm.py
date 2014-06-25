@@ -4,7 +4,7 @@
     Author: npeterson
     Revised: 6/25/14
     ---------------------------------------------------------------------------
-    A script for reading ABM output files into a database and/or Python objects
+    A script for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
 
 '''
@@ -19,8 +19,6 @@ class ABM(object):
     ''' A class for loading ABM model run output data into a SQLite database.
         Initialized with path (parent directory of 'model') and model run
         sample rate (default 0.05). '''
-
-    # Instance initialization & methods
     def __init__(self, abm_dir, sample_rate=0.05):
         self.dir = abm_dir
         self.sample_rate = sample_rate
@@ -50,7 +48,10 @@ class ABM(object):
 
         # Create DB to store CT-RAMP output
         print 'Creating database for {0}...'.format(self.name)
-        self._con = sqlite3.connect(':memory:')
+        self._db = os.path.join(self._output_dir, '{0}.db'.format(self.name))
+        if os.path.exists(self._db):
+            os.remove(self._db)
+        self._con = sqlite3.connect(self._db)
         self._con.row_factory = sqlite3.Row
 
         # Load data from CSVs
@@ -158,6 +159,8 @@ class ABM(object):
             tap_d INTEGER,
             tod INTEGER,
             mode INTEGER,
+            time REAL,
+            distance REAL,
             FOREIGN KEY (tour_id) REFERENCES tours(id),
             FOREIGN KEY (hh_id) REFERENCES households(id)
         )''')
@@ -184,9 +187,20 @@ class ABM(object):
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
                 is_joint = False
+                if mode <= 6:
+                    time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
+                    distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
+                else:
+                    time = None
+                    distance = None
 
-                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d, tod, mode)
-                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (
+                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
+                    purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
+                    tod, mode, time, distance
+                )
+                insert_sql = 'INSERT INTO trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
 
         with open(self._trips_joint_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -210,9 +224,20 @@ class ABM(object):
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
                 is_joint = True
+                if mode <= 6:
+                    time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
+                    distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
+                else:
+                    time = None
+                    distance = None
 
-                db_row = (trip_id, tour_id, hh_id, pers_id, is_joint, inbound, purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d, tod, mode)
-                self._con.execute('INSERT INTO trips VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
+                db_row = (
+                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
+                    purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
+                    tod, mode, time, distance
+                )
+                insert_sql = 'INSERT INTO trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
 
         self.trips_indiv = self._count_rows('trips', 'is_joint=0')
         self.trips_joint = self._count_rows('trips', 'is_joint=1')
