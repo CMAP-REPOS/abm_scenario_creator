@@ -379,16 +379,18 @@ class Comparison(object):
 
 ### SCRIPT MODE ###
 def main():
-    base_dir = r'Y:\nmp\basic_template_20140521'
-    base_abm = ABM(base_dir)
-    print base_abm
+    base = ABM(r'Y:\nmp\basic_template_20140521')
+    print base
 
-    test_dir = r'Y:\nmp\basic_template_20140527'
-    test_abm = ABM(test_dir)
-    print test_abm
+    test = ABM(r'Y:\nmp\basic_template_20140527')
+    print test
 
-    comparison = Comparison(base_abm, test_abm)
+    comparison = Comparison(base, test)
     print comparison
+
+    comparison.print_daily_auto_trips_diverted()
+    comparison.print_daily_auto_trips_eliminated()
+    comparison.print_mode_share_change()
 
     return None
 
