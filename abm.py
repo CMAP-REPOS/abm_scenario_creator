@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 6/25/14
+    Revised: 6/26/14
     ---------------------------------------------------------------------------
     A script for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -23,6 +23,11 @@ class ABM(object):
         self.dir = abm_dir
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
+        self._output_dir = os.path.join(self.dir, 'model', 'outputs')
+        self._db = os.path.join(self._output_dir, '{0}.db'.format(self.name))
+        if os.path.exists(self._db):
+            print 'Removing existing database...'
+            os.remove(self._db)
 
         # Open Emmebank and load highway matrices
         print 'Loading Emme matrices in memory...'
@@ -39,7 +44,6 @@ class ABM(object):
         self._emmebank.dispose()  # Close Emmebank, remove lock
 
         # Set CT-RAMP output paths
-        self._output_dir = os.path.join(self.dir, 'model', 'outputs')
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
         self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
@@ -47,38 +51,27 @@ class ABM(object):
         self._trips_joint_csv = os.path.join(self._output_dir, 'jointTripData_1.csv')
 
         # Create DB to store CT-RAMP output
-        print 'Creating database for {0}...'.format(self.name)
-        self._db = os.path.join(self._output_dir, '{0}.db'.format(self.name))
-        if os.path.exists(self._db):
-            os.remove(self._db)
-        self._con = sqlite3.connect(self._db)
-        self._con.row_factory = sqlite3.Row
+        print 'Initializing database ({0})...'.format(self._db)
+        self.open_db()
 
         # Load data from CSVs
         # -- Households table
         print 'Loading households...'
-        self._con.execute('''CREATE TABLE households (
-            id INTEGER PRIMARY KEY,
+        self._con.execute('''CREATE TABLE Households (
+            hh_id INTEGER PRIMARY KEY,
             sz INTEGER,
             size INTEGER
         )''')
+        self._insert_households(self._hh_data_csv)
+        self._con.commit()
 
-        with open(self._hh_data_csv, 'rb') as csvfile:
-            r = csv.DictReader(csvfile)
-            for d in r:
-                hh_id = int(d['hh_id'])
-                sz = int(d['maz'])
-                size = int(d['size'])
-                db_row = (hh_id, sz, size)
-                self._con.execute('INSERT INTO households VALUES (?,?,?)', db_row)
-
-        self.households = self._count_rows('households')
+        self.households = self._unsample(self._count_rows('Households'))
         print '-- Households: {0:>12.0f}'.format(self.households)
 
         # -- Tours table
         print 'Loading tours...'
-        self._con.execute('''CREATE TABLE tours (
-            id TEXT PRIMARY KEY,
+        self._con.execute('''CREATE TABLE Tours (
+            tour_id TEXT PRIMARY KEY,
             hh_id INTEGER,
             participants TEXT,
             pers_id TEXT,
@@ -90,51 +83,14 @@ class ABM(object):
             tod_d INTEGER,
             tod_a INTEGER,
             mode INTEGER,
-            FOREIGN KEY (hh_id) REFERENCES households(id)
+            FOREIGN KEY (hh_id) REFERENCES Households(id)
         )''')
+        self._insert_tours(self._tours_indiv_csv, is_joint=False)
+        self._insert_tours(self._tours_joint_csv, is_joint=True)
+        self._con.commit()
 
-        with open(self._tours_indiv_csv, 'rb') as csvfile:
-            r = csv.DictReader(csvfile)
-            for d in r:
-                hh_id = int(d['hh_id'])
-                participants = str(d['person_num'])
-                pers_id = participants
-                tour_num = int(d['tour_id'])
-                purpose = str(d['tour_purpose'])
-                category = str(d['tour_category'])
-                sz_o = int(d['orig_maz'])
-                sz_d = int(d['dest_maz'])
-                tod_d = self._convert_time_period(int(d['depart_period']))
-                tod_a = self._convert_time_period(int(d['arrive_period']))
-                mode = int(d['tour_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
-                is_joint = False
-
-                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, tod_d, tod_a, mode)
-                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
-
-        with open(self._tours_joint_csv, 'rb') as csvfile:
-            r = csv.DictReader(csvfile)
-            for d in r:
-                hh_id = int(d['hh_id'])
-                participants = str(d['tour_participants'])
-                pers_id = 'J'
-                tour_num = int(d['tour_id'])
-                purpose = str(d['tour_purpose'])
-                category = str(d['tour_category'])
-                sz_o = int(d['orig_maz'])
-                sz_d = int(d['dest_maz'])
-                tod_d = self._convert_time_period(int(d['depart_period']))
-                tod_a = self._convert_time_period(int(d['arrive_period']))
-                mode = int(d['tour_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
-                is_joint = True
-
-                db_row = (tour_id, hh_id, participants, pers_id, is_joint, category, purpose, sz_o, sz_d, tod_d, tod_a, mode)
-                self._con.execute('INSERT INTO tours VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', db_row)
-
-        self.tours_indiv = self._count_rows('tours', 'is_joint=0')
-        self.tours_joint = self._count_rows('tours', 'is_joint=1')
+        self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
+        self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
         print '-- Tours (indiv): {0:>9.0f}'.format(self.tours_indiv)
         print '-- Tours (joint): {0:>9.0f}'.format(self.tours_joint)
@@ -142,8 +98,8 @@ class ABM(object):
 
         # -- Trips table
         print 'Loading trips...'
-        self._con.execute('''CREATE TABLE trips (
-            id TEXT PRIMARY KEY,
+        self._con.execute('''CREATE TABLE Trips (
+            trip_id TEXT PRIMARY KEY,
             tour_id TEXT,
             hh_id INTEGER,
             pers_id TEXT,
@@ -161,92 +117,21 @@ class ABM(object):
             mode INTEGER,
             time REAL,
             distance REAL,
-            FOREIGN KEY (tour_id) REFERENCES tours(id),
-            FOREIGN KEY (hh_id) REFERENCES households(id)
+            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
         )''')
+        self._insert_trips(self._trips_indiv_csv, is_joint=False)
+        self._insert_trips(self._trips_joint_csv, is_joint=True)
+        self._con.commit()
 
-        with open(self._trips_indiv_csv, 'rb') as csvfile:
-            r = csv.DictReader(csvfile)
-            for d in r:
-                hh_id = int(d['hh_id'])
-                pers_id = str(d['person_num'])
-                tour_num = int(d['tour_id'])
-                purpose_t = str(d['tour_purpose'])
-                inbound = int(d['inbound'])
-                stop_id = int(d['stop_id']) + 1  # to avoid all the -1's
-                purpose_o = str(d['orig_purpose'])
-                purpose_d = str(d['dest_purpose'])
-                sz_o = int(d['orig_maz'])
-                sz_d = int(d['dest_maz'])
-                zn_o = int(d['orig_taz'])
-                zn_d = int(d['dest_taz'])
-                tap_o = int(d['board_tap'])
-                tap_d = int(d['alight_tap'])
-                tod = self._convert_time_period(int(d['stop_period']))
-                mode = int(d['trip_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
-                trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
-                is_joint = False
-                if mode <= 6:
-                    time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
-                    distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
-                else:
-                    time = None
-                    distance = None
-
-                db_row = (
-                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
-                    purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
-                    tod, mode, time, distance
-                )
-                insert_sql = 'INSERT INTO trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
-                self._con.execute(insert_sql, db_row)
-
-        with open(self._trips_joint_csv, 'rb') as csvfile:
-            r = csv.DictReader(csvfile)
-            for d in r:
-                hh_id = int(d['hh_id'])
-                pers_id = 'J'
-                tour_num = int(d['tour_id'])
-                purpose_t = str(d['tour_purpose'])
-                inbound = int(d['inbound'])
-                stop_id = int(d['stop_id']) + 1  # to avoid all the -1's
-                purpose_o = str(d['orig_purpose'])
-                purpose_d = str(d['dest_purpose'])
-                sz_o = int(d['orig_maz'])
-                sz_d = int(d['dest_maz'])
-                zn_o = int(d['orig_taz'])
-                zn_d = int(d['dest_taz'])
-                tap_o = int(d['board_tap'])
-                tap_d = int(d['alight_tap'])
-                tod = self._convert_time_period(int(d['stop_period']))
-                mode = int(d['trip_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
-                trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
-                is_joint = True
-                if mode <= 6:
-                    time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
-                    distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
-                else:
-                    time = None
-                    distance = None
-
-                db_row = (
-                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
-                    purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
-                    tod, mode, time, distance
-                )
-                insert_sql = 'INSERT INTO trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
-                self._con.execute(insert_sql, db_row)
-
-        self.trips_indiv = self._count_rows('trips', 'is_joint=0')
-        self.trips_joint = self._count_rows('trips', 'is_joint=1')
+        self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
+        self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
         print '-- Trips (indiv): {0:>9.0f}'.format(self.trips_indiv)
         print '-- Trips (joint): {0:>9.0f}'.format(self.trips_joint)
         print '-- Trips (total): {0:>9.0f}'.format(self.trips)
 
-        self._con.commit()
+        #self.close_db()
 
         del self._matrices
 
@@ -324,9 +209,13 @@ class ABM(object):
         return cls.modes[mode_num]
 
     # Instance methods
+    def _clean_str(self, string):
+        ''' Clean a string for database entry. '''
+        return string.lower().replace('-', '').replace(' ', '')
+
     def close_db(self):
-        ''' Close the DB. '''
-        self._con.close()
+        ''' Close the database connection. '''
+        return self._con.close()
 
     def _count_rows(self, table, where_clause=None):
         ''' Execute a SELECT COUNT(*) query on a table with optional where
@@ -336,29 +225,155 @@ class ABM(object):
             query += ' WHERE {0}'.format(where_clause)
         return float(self._con.execute(query).fetchone()[0])
 
-    def print_mode_share(self, table):
+    def get_mode_share(self, table, print_results=False):
         ''' Display the mode share of trips or tours. '''
         table_rows = self._count_rows(table)
         mode_share = {}
         for mode in sorted(self.modes.keys()):
             mode_share[mode] = self._count_rows(table, 'mode={0}'.format(mode)) / table_rows
-            print '{0:.<30}{1:>7.2%}'.format(self._get_mode_str(mode), mode_share[mode])
-        return
+            if print_results:
+                print '{0:.<30}{1:>7.2%}'.format(self._get_mode_str(mode), mode_share[mode])
+        return mode_share
+
+    def _insert_households(self, hh_csv):
+        with open(hh_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                sz = int(d['maz'])
+                size = int(d['size'])
+                db_row = (hh_id, sz, size)
+                insert_sql = 'INSERT INTO Households VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
+
+    def _insert_tours(self, tours_csv, is_joint):
+        with open(tours_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                participants = str(d['tour_participants']) if is_joint else str(d['person_num'])
+                pers_id = 'J' if is_joint else participants
+                tour_num = int(d['tour_id'])
+                purpose = self._clean_str(str(d['tour_purpose']))
+                category = self._clean_str(str(d['tour_category']))
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                tod_d = self._convert_time_period(int(d['depart_period']))
+                tod_a = self._convert_time_period(int(d['arrive_period']))
+                mode = int(d['tour_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
+                db_row = (
+                    tour_id, hh_id, participants, pers_id, is_joint, category,
+                    purpose, sz_o, sz_d, tod_d, tod_a, mode
+                )
+                insert_sql = 'INSERT INTO Tours VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
+        return None
+
+    def _insert_trips(self, trips_csv, is_joint):
+        with open(trips_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                hh_id = int(d['hh_id'])
+                pers_id = 'J' if is_joint else str(d['person_num'])
+                tour_num = int(d['tour_id'])
+                purpose_t = self._clean_str(str(d['tour_purpose']))
+                inbound = int(d['inbound'])
+                stop_id = int(d['stop_id']) + 1  # to avoid all the -1's
+                purpose_o = self._clean_str(str(d['orig_purpose']))
+                purpose_d = self._clean_str(str(d['dest_purpose']))
+                sz_o = int(d['orig_maz'])
+                sz_d = int(d['dest_maz'])
+                zn_o = int(d['orig_taz'])
+                zn_d = int(d['dest_taz'])
+                tap_o = int(d['board_tap'])
+                tap_d = int(d['alight_tap'])
+                tod = self._convert_time_period(int(d['stop_period']))
+                mode = int(d['trip_mode'])
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
+                trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
+                if mode <= 6:
+                    time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
+                    distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
+                else:
+                    time = None
+                    distance = None
+                db_row = (
+                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
+                    purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
+                    tod, mode, time, distance
+                )
+                insert_sql = 'INSERT INTO Trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
+        return None
+
+    def open_db(self):
+        ''' Open the database connection. '''
+        self._con = sqlite3.connect(self._db)
+        self._con.row_factory = sqlite3.Row
+        return None
 
     def query(self, sql_query):
         ''' Execute a SQL query and return the cursor object. '''
         return self._con.execute(sql_query)
 
+    def _unsample(self, num, sample_rate=None):
+        ''' Divide a number by sample rate to approximate 100% sample. '''
+        if not sample_rate:
+            sample_rate = self.sample_rate
+        return num / sample_rate
+
 
 class Comparison(object):
     ''' A class for comparing two ABM objects. '''
     def __init__(self, base_abm, test_abm):
-        self.base_abm = base_abm
-        self.test_abm = test_abm
+        self.base = base_abm
+        self.test = test_abm
         return None
 
     def __str__(self):
         return '[Comparison: BASE {0}; TEST {1}]'.format(self.base_abm, self.test_abm)
+
+    # Instance methods
+    def close_dbs(self):
+        ''' Close base & test ABM database connections. '''
+        self.base.close_db()
+        self.test.close_db()
+        return None
+
+    def open_dbs(self):
+        ''' Open base & test ABM database connections. '''
+        self.base.open_db()
+        self.test.open_db()
+        return None
+
+    def print_daily_auto_trips_diverted(self):
+        base_drive_trans = self.base._unsample(self.base._count_rows('Trips', 'mode = 11 or mode = 12'))
+        test_drive_trans = self.test._unsample(self.test._count_rows('Trips', 'mode = 11 or mode = 12'))
+        div_auto_trips = test_drive_trans - base_drive_trans
+        print 'Base daily drive-to-transit: {0:>9.0f}'.format(base_drive_trans)
+        print 'Test daily drive-to-transit: {0:>9.0f}'.format(test_drive_trans)
+        print 'Daily auto trips diverted: {0:>11.0f}'.format(div_auto_trips)
+        return None
+
+    def print_daily_auto_trips_eliminated(self):
+        base_auto_trips = self.base._unsample(self.base._count_rows('Trips', 'mode < 7'))
+        test_auto_trips = self.test._unsample(self.test._count_rows('Trips', 'mode < 7'))
+        elim_auto_trips = base_auto_trips - test_auto_trips
+        pct_elim = elim_auto_trips / base_auto_trips
+        print 'Base daily auto trips: {0:>15.0f}'.format(base_auto_trips)
+        print 'Test daily auto trips: {0:>15.0f}'.format(test_auto_trips)
+        print 'Daily auto trips eliminated: {0:>9.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
+        return None
+
+    def print_mode_share_change(self):
+        base_mode_share = self.base.get_mode_share('Trips')
+        test_mode_share = self.test.get_mode_share('Trips')
+        mode_share_diff = {}
+        for mode in sorted(base_mode_share.keys()):
+            mode_share_diff[mode] = test_mode_share[mode] - base_mode_share[mode]
+            print '{0:.<30}{1:>+8.3%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
+        return None
 
 
 
