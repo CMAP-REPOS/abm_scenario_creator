@@ -66,7 +66,7 @@ class ABM(object):
         self._con.commit()
 
         self.households = self._unsample(self._count_rows('Households'))
-        print '-- Households: {0:>12.0f}'.format(self.households)
+        print '-- Households: {0:>14,.0f}'.format(self.households)
 
         # -- Tours table
         print 'Loading tours...'
@@ -92,9 +92,9 @@ class ABM(object):
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
-        print '-- Tours (indiv): {0:>9.0f}'.format(self.tours_indiv)
-        print '-- Tours (joint): {0:>9.0f}'.format(self.tours_joint)
-        print '-- Tours (total): {0:>9.0f}'.format(self.tours)
+        print '-- Tours (indiv): {0:>11,.0f}'.format(self.tours_indiv)
+        print '-- Tours (joint): {0:>11,.0f}'.format(self.tours_joint)
+        print '-- Tours (total): {0:>11,.0f}'.format(self.tours)
 
         # -- Trips table
         print 'Loading trips...'
@@ -127,9 +127,9 @@ class ABM(object):
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
-        print '-- Trips (indiv): {0:>9.0f}'.format(self.trips_indiv)
-        print '-- Trips (joint): {0:>9.0f}'.format(self.trips_joint)
-        print '-- Trips (total): {0:>9.0f}'.format(self.trips)
+        print '-- Trips (indiv): {0:>11,.0f}'.format(self.trips_indiv)
+        print '-- Trips (joint): {0:>11,.0f}'.format(self.trips_joint)
+        print '-- Trips (total): {0:>11,.0f}'.format(self.trips)
 
         #self.close_db()
 
@@ -351,28 +351,62 @@ class Comparison(object):
         base_drive_trans = self.base._unsample(self.base._count_rows('Trips', 'mode = 11 or mode = 12'))
         test_drive_trans = self.test._unsample(self.test._count_rows('Trips', 'mode = 11 or mode = 12'))
         div_auto_trips = test_drive_trans - base_drive_trans
-        print 'Base daily drive-to-transit: {0:>9.0f}'.format(base_drive_trans)
-        print 'Test daily drive-to-transit: {0:>9.0f}'.format(test_drive_trans)
-        print 'Daily auto trips diverted: {0:>11.0f}'.format(div_auto_trips)
+        print 'Base daily drive-to-transit: {0:>11,.0f}'.format(base_drive_trans)
+        print 'Test daily drive-to-transit: {0:>11,.0f}'.format(test_drive_trans)
+        print 'Daily auto trips diverted: {0:>13,.0f}'.format(div_auto_trips)
         return None
 
     def print_daily_auto_trips_eliminated(self):
-        base_auto_trips = self.base._unsample(self.base._count_rows('Trips', 'mode < 7'))
-        test_auto_trips = self.test._unsample(self.test._count_rows('Trips', 'mode < 7'))
+        base_auto_trips = 0
+        base_auto_trip_dist_sum = 0
+        base_auto_trip_time_sum = 0
+        base_auto_trip_dists = self.base.query('SELECT distance, time from Trips WHERE mode < 7')
+        for trip in base_auto_trip_dists:
+            base_auto_trips += self.base._unsample(1)
+            base_auto_trip_dist_sum += self.base._unsample(trip[0])
+            base_auto_trip_time_sum += self.base._unsample(trip[1])
+
+        test_auto_trips = 0
+        test_auto_trip_dist_sum = 0
+        test_auto_trip_time_sum = 0
+        test_auto_trip_dists = self.test.query('SELECT distance, time from Trips WHERE mode < 7')
+        for trip in test_auto_trip_dists:
+            test_auto_trips += self.test._unsample(1)
+            test_auto_trip_dist_sum += self.test._unsample(trip[0])
+            test_auto_trip_time_sum += self.test._unsample(trip[1])
+
         elim_auto_trips = base_auto_trips - test_auto_trips
         pct_elim = elim_auto_trips / base_auto_trips
-        print 'Base daily auto trips: {0:>15.0f}'.format(base_auto_trips)
-        print 'Test daily auto trips: {0:>15.0f}'.format(test_auto_trips)
-        print 'Daily auto trips eliminated: {0:>9.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
+        avg_dist_elim = (base_auto_trip_dist_sum - test_auto_trip_dist_sum) / elim_auto_trips
+        avg_dur_elim = (base_auto_trip_time_sum - test_auto_trip_time_sum) / elim_auto_trips
+        avg_speed_elim = avg_dist_elim / (avg_dur_elim / 60)
+
+        print 'Base daily auto trips: {0:>17,.0f}'.format(base_auto_trips)
+        print 'Test daily auto trips: {0:>17,.0f}'.format(test_auto_trips)
+        print 'Daily auto trips eliminated: {0:>11,.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
+        print 'Avg. distance of eliminated trip: {0:.2f} miles'.format(avg_dist_elim)
+        print 'Avg. duration of eliminated trip: {0:.2f} mins'.format(avg_dur_elim)
+        print 'Avg. speed of eliminated trip: {0:.2f} mph'.format(avg_speed_elim)
         return None
 
-    def print_mode_share_change(self):
-        base_mode_share = self.base.get_mode_share('Trips')
-        test_mode_share = self.test.get_mode_share('Trips')
+    def print_mode_share_change(self, grouped=False):
+        base_mode_share = self.base.get_mode_share('Tours')
+        test_mode_share = self.test.get_mode_share('Tours')
         mode_share_diff = {}
         for mode in sorted(base_mode_share.keys()):
             mode_share_diff[mode] = test_mode_share[mode] - base_mode_share[mode]
-            print '{0:.<30}{1:>+8.3%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
+        if grouped:
+            mode_share_grouped_diff = {
+                'Drive (Excl. Taxi)': sum(mode_share_diff[m] for m in xrange(1, 7)),
+                'Transit (Drive To)': sum(mode_share_diff[m] for m in xrange(11, 13)),
+                'Transit (Walk To)': sum(mode_share_diff[m] for m in xrange(9, 11)),
+                'Walk/Bike/Taxi/School Bus': sum(mode_share_diff[m] for m in (7, 8, 13, 14))
+            }
+            for mode in sorted(mode_share_grouped_diff.keys()):
+                print '{0:.<30}{1:>+8.3%}'.format(mode, mode_share_grouped_diff[mode])
+        else:
+            for mode in sorted(mode_share_diff.keys()):
+                print '{0:.<30}{1:>+8.3%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
         return None
 
 
