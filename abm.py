@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 6/26/14
+    Revised: 6/27/14
     ---------------------------------------------------------------------------
     A script for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -66,7 +66,7 @@ class ABM(object):
         self._con.commit()
 
         self.households = self._unsample(self._count_rows('Households'))
-        print '-- Households: {0:>14,.0f}'.format(self.households)
+        print '-- Households: {0:>14.0f}'.format(self.households)
 
         # -- Tours table
         print 'Loading tours...'
@@ -92,9 +92,9 @@ class ABM(object):
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
-        print '-- Tours (indiv): {0:>11,.0f}'.format(self.tours_indiv)
-        print '-- Tours (joint): {0:>11,.0f}'.format(self.tours_joint)
-        print '-- Tours (total): {0:>11,.0f}'.format(self.tours)
+        print '-- Tours (indiv): {0:>11.0f}'.format(self.tours_indiv)
+        print '-- Tours (joint): {0:>11.0f}'.format(self.tours_joint)
+        print '-- Tours (total): {0:>11.0f}'.format(self.tours)
 
         # -- Trips table
         print 'Loading trips...'
@@ -127,9 +127,9 @@ class ABM(object):
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
-        print '-- Trips (indiv): {0:>11,.0f}'.format(self.trips_indiv)
-        print '-- Trips (joint): {0:>11,.0f}'.format(self.trips_joint)
-        print '-- Trips (total): {0:>11,.0f}'.format(self.trips)
+        print '-- Trips (indiv): {0:>11.0f}'.format(self.trips_indiv)
+        print '-- Trips (joint): {0:>11.0f}'.format(self.trips_joint)
+        print '-- Trips (total): {0:>11.0f}'.format(self.trips)
 
         #self.close_db()
 
@@ -351,9 +351,9 @@ class Comparison(object):
         base_drive_trans = self.base._unsample(self.base._count_rows('Trips', 'mode = 11 or mode = 12'))
         test_drive_trans = self.test._unsample(self.test._count_rows('Trips', 'mode = 11 or mode = 12'))
         div_auto_trips = test_drive_trans - base_drive_trans
-        print 'Base daily drive-to-transit: {0:>11,.0f}'.format(base_drive_trans)
-        print 'Test daily drive-to-transit: {0:>11,.0f}'.format(test_drive_trans)
-        print 'Daily auto trips diverted: {0:>13,.0f}'.format(div_auto_trips)
+        print 'Base daily drive-to-transit: {0:>11.0f}'.format(base_drive_trans)
+        print 'Test daily drive-to-transit: {0:>11.0f}'.format(test_drive_trans)
+        print 'Daily auto trips diverted: {0:>13.0f}'.format(div_auto_trips)
         return None
 
     def print_daily_auto_trips_eliminated(self):
@@ -381,9 +381,9 @@ class Comparison(object):
         avg_dur_elim = (base_auto_trip_time_sum - test_auto_trip_time_sum) / elim_auto_trips
         avg_speed_elim = avg_dist_elim / (avg_dur_elim / 60)
 
-        print 'Base daily auto trips: {0:>17,.0f}'.format(base_auto_trips)
-        print 'Test daily auto trips: {0:>17,.0f}'.format(test_auto_trips)
-        print 'Daily auto trips eliminated: {0:>11,.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
+        print 'Base daily auto trips: {0:>17.0f}'.format(base_auto_trips)
+        print 'Test daily auto trips: {0:>17.0f}'.format(test_auto_trips)
+        print 'Daily auto trips eliminated: {0:>11.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
         print 'Avg. distance of eliminated trip: {0:.2f} miles'.format(avg_dist_elim)
         print 'Avg. duration of eliminated trip: {0:.2f} mins'.format(avg_dur_elim)
         print 'Avg. speed of eliminated trip: {0:.2f} mph'.format(avg_speed_elim)
