@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 6/27/14
+    Revised: 6/30/14
     ---------------------------------------------------------------------------
     A script for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -23,6 +23,7 @@ class ABM(object):
         self.dir = abm_dir
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
+        self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
         self._db = os.path.join(self._output_dir, '{0}.db'.format(self.name))
         if os.path.exists(self._db):
@@ -43,6 +44,17 @@ class ABM(object):
                 self._matrices[mode][tod]['d'] = self._emmebank.matrix('mf{0}{1}'.format(tod, d)).get_data(tod)
         self._emmebank.dispose()  # Close Emmebank, remove lock
 
+        # Load TAP data
+        print 'Loading TAP data into memory...'
+        self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
+        self.tap_zones = {}
+        with open(self._tap_attr_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                tap = int(d['tap_id'])
+                zone = int(d['taz09'])
+                self.tap_zones[tap] = zone
+
         # Set CT-RAMP output paths
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
@@ -56,7 +68,7 @@ class ABM(object):
 
         # Load data from CSVs
         # -- Households table
-        print 'Loading households...'
+        print 'Loading households into database...'
         self._con.execute('''CREATE TABLE Households (
             hh_id INTEGER PRIMARY KEY,
             sz INTEGER,
@@ -69,7 +81,7 @@ class ABM(object):
         print '-- Households: {0:>14.0f}'.format(self.households)
 
         # -- Tours table
-        print 'Loading tours...'
+        print 'Loading tours into database...'
         self._con.execute('''CREATE TABLE Tours (
             tour_id TEXT PRIMARY KEY,
             hh_id INTEGER,
@@ -97,7 +109,7 @@ class ABM(object):
         print '-- Tours (total): {0:>11.0f}'.format(self.tours)
 
         # -- Trips table
-        print 'Loading trips...'
+        print 'Loading trips into database...'
         self._con.execute('''CREATE TABLE Trips (
             trip_id TEXT PRIMARY KEY,
             tour_id TEXT,
@@ -115,8 +127,9 @@ class ABM(object):
             tap_d INTEGER,
             tod INTEGER,
             mode INTEGER,
-            time REAL,
-            distance REAL,
+            drive_time REAL,
+            drive_distance REAL,
+            drive_speed REAL,
             FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
             FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
         )''')
@@ -130,8 +143,6 @@ class ABM(object):
         print '-- Trips (indiv): {0:>11.0f}'.format(self.trips_indiv)
         print '-- Trips (joint): {0:>11.0f}'.format(self.trips_joint)
         print '-- Trips (total): {0:>11.0f}'.format(self.trips)
-
-        #self.close_db()
 
         del self._matrices
 
@@ -292,16 +303,28 @@ class ABM(object):
                 mode = int(d['trip_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
-                if mode <= 6:
+
+                # Approximate DRIVE time, distance, speed
+                if mode <= 6 :  # Private autos
                     time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
                     distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
-                else:
-                    time = None
-                    distance = None
+                elif mode >= 13 :  # Taxis, school buses (assume drive alone, free)
+                    time = self._matrices[1][tod]['t'].get(zn_o, zn_d)
+                    distance = self._matrices[1][tod]['d'].get(zn_o, zn_d)
+                elif mode in (11, 12):  # Drive-to-transit (assume drive alone, free)
+                    from_zone = self.tap_zones[tap_d] if inbound else zn_o
+                    to_zone = zn_d if inbound else self.tap_zones[tap_o]
+                    time = self._matrices[1][tod]['t'].get(from_zone, to_zone)
+                    distance = self._matrices[1][tod]['d'].get(from_zone, to_zone)
+                else:  # Walk, bike, walk-to-transit
+                    time = 0
+                    distance = 0
+                speed = distance / (time / 60) if (time and distance) else 0
+
                 db_row = (
                     trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
                     purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
-                    tod, mode, time, distance
+                    tod, mode, time, distance, speed
                 )
                 insert_sql = 'INSERT INTO Trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
@@ -348,45 +371,68 @@ class Comparison(object):
         return None
 
     def print_daily_auto_trips_diverted(self):
-        base_drive_trans = self.base._unsample(self.base._count_rows('Trips', 'mode = 11 or mode = 12'))
-        test_drive_trans = self.test._unsample(self.test._count_rows('Trips', 'mode = 11 or mode = 12'))
+        ''' Print the number of trips that changed from auto-only to drive-to-transit. '''
+        # Currently no guarantee new drive-to-transit trips are coming from former auto trips...
+        base_drive_trans = self.base._unsample(self.base._count_rows('Trips', 'mode=11 or mode=12'))
+        test_drive_trans = self.test._unsample(self.test._count_rows('Trips', 'mode=11 or mode=12'))
         div_auto_trips = test_drive_trans - base_drive_trans
-        print 'Base daily drive-to-transit: {0:>11.0f}'.format(base_drive_trans)
-        print 'Test daily drive-to-transit: {0:>11.0f}'.format(test_drive_trans)
-        print 'Daily auto trips diverted: {0:>13.0f}'.format(div_auto_trips)
+        print ' '
+        print 'Daily Auto Trips Diverted'.upper()
+        print '-------------------------'
+        print 'Base daily drive-to-transit: {0:>8.0f}'.format(base_drive_trans)
+        print 'Test daily drive-to-transit: {0:>8.0f}'.format(test_drive_trans)
+        print 'Daily auto trips diverted: {0:>10.0f}'.format(div_auto_trips)
+        print ' '
         return None
 
     def print_daily_auto_trips_eliminated(self):
-        base_auto_trips = 0
-        base_auto_trip_dist_sum = 0
-        base_auto_trip_time_sum = 0
-        base_auto_trip_dists = self.base.query('SELECT distance, time from Trips WHERE mode < 7')
-        for trip in base_auto_trip_dists:
-            base_auto_trips += self.base._unsample(1)
-            base_auto_trip_dist_sum += self.base._unsample(trip[0])
-            base_auto_trip_time_sum += self.base._unsample(trip[1])
-
-        test_auto_trips = 0
-        test_auto_trip_dist_sum = 0
-        test_auto_trip_time_sum = 0
-        test_auto_trip_dists = self.test.query('SELECT distance, time from Trips WHERE mode < 7')
-        for trip in test_auto_trip_dists:
-            test_auto_trips += self.test._unsample(1)
-            test_auto_trip_dist_sum += self.test._unsample(trip[0])
-            test_auto_trip_time_sum += self.test._unsample(trip[1])
-
-        elim_auto_trips = base_auto_trips - test_auto_trips
-        pct_elim = elim_auto_trips / base_auto_trips
-        avg_dist_elim = (base_auto_trip_dist_sum - test_auto_trip_dist_sum) / elim_auto_trips
-        avg_dur_elim = (base_auto_trip_time_sum - test_auto_trip_time_sum) / elim_auto_trips
-        avg_speed_elim = avg_dist_elim / (avg_dur_elim / 60)
-
-        print 'Base daily auto trips: {0:>17.0f}'.format(base_auto_trips)
-        print 'Test daily auto trips: {0:>17.0f}'.format(test_auto_trips)
-        print 'Daily auto trips eliminated: {0:>11.0f} ({1:.3%})'.format(elim_auto_trips, pct_elim)
-        print 'Avg. distance of eliminated trip: {0:.2f} miles'.format(avg_dist_elim)
-        print 'Avg. duration of eliminated trip: {0:.2f} mins'.format(avg_dur_elim)
-        print 'Avg. speed of eliminated trip: {0:.2f} mph'.format(avg_speed_elim)
+        ''' Print the number of trips that changed from auto-only to walk-to-transit. '''
+        # Currently no guarantee new drive-to-transit trips are coming from former auto trips...
+        base_walk_trans = self.base._unsample(self.base._count_rows('Trips', 'mode=9 or mode=10'))
+        test_walk_trans = self.test._unsample(self.test._count_rows('Trips', 'mode=9 or mode=10'))
+        elim_auto_trips = test_walk_trans - base_walk_trans
+        print ' '
+        print 'Daily Auto Trips Diverted'.upper()
+        print '-------------------------'
+        print 'Base daily walk-to-transit: {0:>8.0f}'.format(base_walk_trans)
+        print 'Test daily walk-to-transit: {0:>8.0f}'.format(test_walk_trans)
+        print 'Daily auto trips eliminated: {0:>7.0f}'.format(elim_auto_trips)
+        print ' '
+        #base_auto_trips = 0
+        #base_auto_trip_dist_sum = 0
+        #base_auto_trip_time_sum = 0
+        #base_auto_trip_dists = self.base.query('SELECT drive_distance, drive_time from Trips WHERE mode < 7')
+        #for trip in base_auto_trip_dists:
+        #    base_auto_trips += self.base._unsample(1)
+        #    base_auto_trip_dist_sum += self.base._unsample(trip[0])
+        #    base_auto_trip_time_sum += self.base._unsample(trip[1])
+        #
+        #test_auto_trips = 0
+        #test_auto_trip_dist_sum = 0
+        #test_auto_trip_time_sum = 0
+        #test_auto_trip_dists = self.test.query('SELECT drive_distance, drive_time from Trips WHERE mode < 7')
+        #for trip in test_auto_trip_dists:
+        #    test_auto_trips += self.test._unsample(1)
+        #    test_auto_trip_dist_sum += self.test._unsample(trip[0])
+        #    test_auto_trip_time_sum += self.test._unsample(trip[1])
+        #
+        #elim_auto_trips = base_auto_trips - test_auto_trips
+        #pct_elim = elim_auto_trips / base_auto_trips
+        #avg_dist_elim = (base_auto_trip_dist_sum - test_auto_trip_dist_sum) / elim_auto_trips
+        #avg_dur_elim = (base_auto_trip_time_sum - test_auto_trip_time_sum) / elim_auto_trips
+        #avg_speed_elim = avg_dist_elim / (avg_dur_elim / 60)
+        #
+        #print ' '
+        #print 'Daily Auto Trips Eliminated'.upper()
+        #print '---------------------------'
+        #print 'Base daily auto trips: {0:>14.0f}'.format(base_auto_trips)
+        #print 'Test daily auto trips: {0:>14.0f}'.format(test_auto_trips)
+        #print 'Daily auto trips eliminated: {0:>8.0f} ({1:.2%})'.format(elim_auto_trips, pct_elim)
+        #print ' '
+        #print 'Avg. distance of eliminated trip: {0:.2f} miles'.format(avg_dist_elim)
+        #print 'Avg. duration of eliminated trip: {0:.2f} mins'.format(avg_dur_elim)
+        #print 'Avg. speed of eliminated trip: {0:.2f} mph'.format(avg_speed_elim)
+        #print ' '
         return None
 
     def print_mode_share_change(self, grouped=False):
@@ -395,6 +441,7 @@ class Comparison(object):
         mode_share_diff = {}
         for mode in sorted(base_mode_share.keys()):
             mode_share_diff[mode] = test_mode_share[mode] - base_mode_share[mode]
+        print ' '
         if grouped:
             mode_share_grouped_diff = {
                 'Drive (Excl. Taxi)': sum(mode_share_diff[m] for m in xrange(1, 7)),
@@ -402,11 +449,16 @@ class Comparison(object):
                 'Transit (Walk To)': sum(mode_share_diff[m] for m in xrange(9, 11)),
                 'Walk/Bike/Taxi/School Bus': sum(mode_share_diff[m] for m in (7, 8, 13, 14))
             }
+            print 'Mode Share Change (Grouped):'.upper()
+            print '----------------------------'
             for mode in sorted(mode_share_grouped_diff.keys()):
-                print '{0:.<30}{1:>+8.3%}'.format(mode, mode_share_grouped_diff[mode])
+                print '{0:.<30}{1:>+7.2%}'.format(mode, mode_share_grouped_diff[mode])
         else:
+            print 'Mode Share Change (Ungrouped):'.upper()
+            print '------------------------------'
             for mode in sorted(mode_share_diff.keys()):
-                print '{0:.<30}{1:>+8.3%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
+                print '{0:.<30}{1:>+7.2%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
+        print ' '
         return None
 
 
@@ -419,12 +471,12 @@ def main():
     test = ABM(r'Y:\nmp\basic_template_20140527')
     print test
 
-    comparison = Comparison(base, test)
+    comp = Comparison(base, test)
     print comparison
 
-    comparison.print_daily_auto_trips_diverted()
-    comparison.print_daily_auto_trips_eliminated()
-    comparison.print_mode_share_change()
+    comp.print_daily_auto_trips_diverted()
+    comp.print_daily_auto_trips_eliminated()
+    comp.print_mode_share_change()
 
     return None
 
