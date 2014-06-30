@@ -4,7 +4,7 @@
     Author: npeterson
     Revised: 6/30/14
     ---------------------------------------------------------------------------
-    A script for reading ABM output files and matrix data into an SQL database
+    A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
 
 '''
@@ -25,10 +25,19 @@ class ABM(object):
         self.name = os.path.basename(self.dir)
         self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
-        self._db = os.path.join(self._output_dir, '{0}.db'.format(self.name))
+        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'
+        self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))
         if os.path.exists(self._db):
             print 'Removing existing database...'
             os.remove(self._db)
+
+        # Set CT-RAMP CSV paths
+        self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
+        self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
+        self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
+        self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
+        self._trips_indiv_csv = os.path.join(self._output_dir, 'indivTripData_1.csv')
+        self._trips_joint_csv = os.path.join(self._output_dir, 'jointTripData_1.csv')
 
         # Open Emmebank and load highway matrices
         print 'Loading Emme matrices in memory...'
@@ -46,7 +55,6 @@ class ABM(object):
 
         # Load TAP data
         print 'Loading TAP data into memory...'
-        self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
         self.tap_zones = {}
         with open(self._tap_attr_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
@@ -54,13 +62,6 @@ class ABM(object):
                 tap = int(d['tap_id'])
                 zone = int(d['taz09'])
                 self.tap_zones[tap] = zone
-
-        # Set CT-RAMP output paths
-        self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
-        self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
-        self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
-        self._trips_indiv_csv = os.path.join(self._output_dir, 'indivTripData_1.csv')
-        self._trips_joint_csv = os.path.join(self._output_dir, 'jointTripData_1.csv')
 
         # Create DB to store CT-RAMP output
         print 'Initializing database ({0})...'.format(self._db)
@@ -197,7 +198,7 @@ class ABM(object):
     @classmethod
     def _get_matrix_nums(cls, mode):
         ''' Return the matrix numbers for congested time and distance
-            corresponding to driving mode (1-6). '''
+            corresponding to driving mode (1-6). See ABM User Guide p.36. '''
         if mode == 1:  # SOV, no toll
             t, d = 175, 177
         elif mode == 2:  # SOV, toll
@@ -304,7 +305,7 @@ class ABM(object):
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
 
-                # Approximate DRIVE time, distance, speed
+                # Estimate DRIVE time, distance, speed
                 if mode <= 6 :  # Private autos
                     time = self._matrices[mode][tod]['t'].get(zn_o, zn_d)
                     distance = self._matrices[mode][tod]['d'].get(zn_o, zn_d)
