@@ -25,8 +25,8 @@ class ABM(object):
         self.name = os.path.basename(self.dir)
         self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
-        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'
-        self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))
+        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## CHANGE LATER
+        self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER
         if os.path.exists(self._db):
             print 'Removing existing database...'
             os.remove(self._db)
@@ -382,76 +382,89 @@ class Comparison(object):
         print ' '
         if grouped:
             mode_share_grouped_diff = {
-                'Drive (Excl. Taxi)': sum(mode_share_diff[m] for m in xrange(1, 7)),
-                'Transit (Drive To)': sum(mode_share_diff[m] for m in xrange(11, 13)),
-                'Transit (Walk To)': sum(mode_share_diff[m] for m in xrange(9, 11)),
+                'Auto (Excl. Taxi)': sum(mode_share_diff[m] for m in xrange(1, 7)),
+                'Drive-to-Transit': sum(mode_share_diff[m] for m in xrange(11, 13)),
+                'Walk-to-Transit': sum(mode_share_diff[m] for m in xrange(9, 11)),
                 'Walk/Bike/Taxi/School Bus': sum(mode_share_diff[m] for m in (7, 8, 13, 14))
             }
             print 'MODE SHARE CHANGE (GROUPED)'
             print '---------------------------'
             for mode in sorted(mode_share_grouped_diff.keys()):
-                print '{0:<30}{1:>+8.2%}'.format(mode, mode_share_grouped_diff[mode])
+                print '{0:<25}{1:>+10.2%}'.format(mode, mode_share_grouped_diff[mode])
         else:
             print 'MODE SHARE CHANGE (UNGROUPED)'
             print '-----------------------------'
             for mode in sorted(mode_share_diff.keys()):
-                print '{0:<30}{1:>+8.2%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
+                print '{0:<25}{1:>+10.2%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
         print ' '
         return None
 
-    def print_new_trips_for_modes(self, mode_list, mode_description):
+    def print_new_for_mode(self, mode_list, mode_description, table='Trips'):
         ''' Identify the increase (or decrease) in trips for a given set of modes. '''
         sql_where = ' or '.join(('mode={0}'.format(mode) for mode in mode_list))
-        base_trips = self.base._unsample(self.base._count_rows('Trips', sql_where))
-        test_trips = self.test._unsample(self.test._count_rows('Trips', sql_where))
+        base_trips = self.base._unsample(self.base._count_rows(table, sql_where))
+        test_trips = self.test._unsample(self.test._count_rows(table, sql_where))
         new_trips = test_trips - base_trips
+        pct_new_trips = new_trips / base_trips
         print ' '
         print mode_description.upper()
-        print '-' * len (mode_description)
-        print '{0:<20}{1:>10.0f}'.format('Base daily trips:', base_trips)
-        print '{0:<20}{1:>10.0f}'.format('Test daily trips:', test_trips)
-        print '{0:<20}{1:>10.0f}'.format('New daily trips:', new_trips)
+        print '-' * len(mode_description)
+        print '{0:<20}{1:>10.0f}'.format('Base daily {0}'.format(table.lower()), base_trips)
+        print '{0:<20}{1:>10.0f}'.format('Test daily {0}'.format(table.lower()), test_trips)
+        print '{0:<20}{1:>+10.0f} ({2:+.2%})'.format('Daily {0} change'.format(table.lower()), new_trips, pct_new_trips)
         print ' '
         return None
 
+    # Wrapper methods for print_new_for_mode():
+    def print_new_all(self):
+        ''' All-trips wrapper for print_new_for_mode(). '''
+        return self.print_new_for_mode(xrange(1, 15), 'Change in Total Trips')
     def print_new_auto(self):
-        ''' Auto-trips wrapper for print_new_trips_for_modes(). '''
-        return self.print_new_trips_for_modes([1, 2, 3, 4, 5, 6], 'Auto Trips')
-
+        ''' Auto-trips wrapper for print_new_for_mode(). '''
+        return self.print_new_for_mode(xrange(1, 7), 'Change in Auto Trips')
     def print_new_dtt(self):
-        ''' Drive-to-transit wrapper for print_new_trips_for_modes(). '''
-        return self.print_new_trips_for_modes([11, 12], 'Drive-to-Transit Trips')
-
+        ''' Drive-to-transit wrapper for print_new_for_mode(). '''
+        return self.print_new_for_mode([11, 12], 'Change in Drive-to-Transit Trips')
     def print_new_wtt(self):
-        ''' Walk-to-transit wrapper for print_new_trips_for_modes(). '''
-        return self.print_new_trips_for_modes([9, 10], 'Walk-to-Transit Trips')
+        ''' Walk-to-transit wrapper for print_new_for_mode(). '''
+        return self.print_new_for_mode([9, 10], 'Change in Walk-to-Transit Trips')
+    def print_new_other(self):
+        ''' Walk/bike/taxi/school bus trips wrapper for print_new_for_mode(). '''
+        return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit Trips')
 
 
 
 ### SCRIPT MODE ###
 def main():
+    print '\n{0:=^50}'.format(' P R O C E S S I N G ')
     print ' '
-    print 'PROCESSING BASE NETWORK'
-    print '-----------------------'
+    print 'BASE NETWORK'
+    print '------------'
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
     print base
+    print ' '
 
     print ' '
-    print 'PROCESSING TEST NETWORK'
-    print '-----------------------'
+    print 'TEST NETWORK'
+    print '------------'
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
     print test
+    print ' '
 
     print ' '
-    print 'CREATING COMPARISON'
-    print '-------------------'
+    print 'COMPARISON'
+    print '----------'
     comp = Comparison(base, test)
     print comp
+    print ' '
 
+    print '\n{0:=^50}'.format(' R E S U L T S ')
+    comp.print_mode_share_change()
+    comp.print_new_all()
     comp.print_new_auto()
     comp.print_new_dtt()
     comp.print_new_wtt()
-    comp.print_mode_share_change()
+    comp.print_new_other()
 
     comp.close_dbs()
 
