@@ -468,7 +468,7 @@ def main():
 
     comp.close_dbs()
 
-    return None
+    return (base, test, comp)
 
 if __name__ == '__main__':
     main()
