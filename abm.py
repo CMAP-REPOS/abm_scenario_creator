@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/1/14
+    Revised: 7/9/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -147,6 +147,30 @@ class ABM(object):
 
         del self._matrices
 
+        # -- TransitSegs table
+        print 'Loading transit segments into database...'
+        self._con.execute('''CREATE TABLE TransitSegs (
+            tseg_id TEXT PRIMARY KEY,
+            tline_id TEXT,
+            tseg_num INTEGER,
+            inode INTEGER,
+            jnode INTEGER,
+            tod INTEGER,
+            transit_mode TEXT,
+            boardings REAL,
+            passengers REAL,
+            pass_hrs REAL,
+            pass_mi REAL
+        )''')
+        self._insert_tsegs()
+        self._con.commit()
+
+        self.transit_segments = self._count_rows('TransitSegs')
+        print '{0:<20}{1:>10.0f}'.format('-- Transit Segments:', self.transit_segments)
+
+        self.transit_stats = self._get_transit_stats()
+        self.mode_share = self._get_mode_share()
+
         return None  ### End of ABM.__init__() ###
 
     def __str__(self):
@@ -182,6 +206,16 @@ class ABM(object):
         8,8,8,8,               # CT-RAMP periods 28-31: [6pm, 8pm)
         1,1,1,1,1,1,1,1,1,1,1  # CT-RAMP periods 32-42: [8pm, 3am)
     ]
+
+    transit_modes = {
+        'M': 'Metra Rail',
+        'C': 'CTA Rail',
+        'B': 'CTA Bus (Regular)',
+        'E': 'CTA Bus (Express)',
+        'L': 'Pace Bus (Local)',
+        'P': 'Pace Bus (Regular)',
+        'Q': 'Pace Bus (Express)'
+    }
 
     # Class methods
     @classmethod
@@ -237,17 +271,32 @@ class ABM(object):
             query += ' WHERE {0}'.format(where_clause)
         return float(self._con.execute(query).fetchone()[0])
 
-    def get_mode_share(self, table, print_results=False):
-        ''' Display the mode share of trips or tours. '''
+    def _get_mode_share(self, table='Trips'):
+        ''' Return the mode share of trips (or tours). '''
         table_rows = self._count_rows(table)
         mode_share = {}
         for mode in sorted(self.modes.keys()):
             mode_share[mode] = self._count_rows(table, 'mode={0}'.format(mode)) / table_rows
-            if print_results:
-                print '{0:.<30}{1:>7.2%}'.format(self._get_mode_str(mode), mode_share[mode])
         return mode_share
 
+    def _get_transit_stats(self):
+        ''' Return the boardings, passenger miles traveled and passenger hours
+            traveled, by mode. '''
+        transit_stats = {
+            'BOARDINGS': {},
+            'PMT': {},
+            'PHT': {}
+        }
+        query = 'SELECT transit_mode, SUM(boardings), SUM(pass_mi), SUM(pass_hrs) FROM TransitSegs GROUP BY transit_mode'
+        for r in self._con.execute(query):
+            transit_mode, boardings, pass_mi, pass_hrs = r
+            transit_stats['BOARDINGS'][transit_mode] = boardings
+            transit_stats['PMT'][transit_mode] = pass_mi
+            transit_stats['PHT'][transit_mode] = pass_hrs
+        return transit_stats
+
     def _insert_households(self, hh_csv):
+        ''' Populate the Households table from a CSV. '''
         with open(hh_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
@@ -259,6 +308,7 @@ class ABM(object):
                 self._con.execute(insert_sql, db_row)
 
     def _insert_tours(self, tours_csv, is_joint):
+        ''' Populate the Tours table from a CSV. '''
         with open(tours_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
@@ -283,6 +333,7 @@ class ABM(object):
         return None
 
     def _insert_trips(self, trips_csv, is_joint):
+        ''' Populate the Trips table from a CSV. '''
         with open(trips_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
@@ -331,10 +382,84 @@ class ABM(object):
                 self._con.execute(insert_sql, db_row)
         return None
 
+    def _insert_tsegs(self):
+        ''' Populate the TransitSegs table from Emme transit assignments. '''
+        self._emmebank = _eb.Emmebank(self._emmebank_path)
+        for tod in xrange(1, 9):
+            scenario_id = '10{0}'.format(tod)
+            scenario = self._emmebank.scenario(scenario_id)
+            network = scenario.get_network()
+            for tseg in network.transit_segments():
+                inode = tseg.i_node
+                jnode = tseg.j_node
+                if inode and jnode:
+                    link = tseg.link
+                    tline = tseg.line
+                    boardings = tseg.transit_boardings
+                    passengers = tseg.transit_volume
+                    pass_hrs = passengers * tseg.transit_time / 60.0
+                    pass_mi = passengers * link.length
+                    db_row = (
+                        tseg.id, tline.id, tseg.number, inode.number, jnode.number,
+                        tod, tline.mode.id, boardings, passengers, pass_hrs, pass_mi
+                    )
+                    insert_sql = 'INSERT INTO TransitSegs VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                    self._con.execute(insert_sql, db_row)
+        self._emmebank.dispose()  # Close Emmebank, remove lock
+        return None
+
     def open_db(self):
         ''' Open the database connection. '''
         self._con = sqlite3.connect(self._db)
         self._con.row_factory = sqlite3.Row
+        return None
+
+    def print_mode_share(self, grouped=True):
+        ''' Print the mode share of trips. '''
+        print ' '
+        if grouped:
+            mode_share_grouped = {
+                'Auto (Excl. Taxi)': sum(self.mode_share[m] for m in xrange(1, 7)),
+                'Drive-to-Transit': sum(self.mode_share[m] for m in xrange(11, 13)),
+                'Walk-to-Transit': sum(self.mode_share[m] for m in xrange(9, 11)),
+                'Walk/Bike/Taxi/School Bus': sum(self.mode_share[m] for m in (7, 8, 13, 14))
+            }
+            print 'MODE SHARE (GROUPED)'
+            print '--------------------'
+            for mode in sorted(mode_share_grouped.keys()):
+                print '{0:<25}{1:>10.2%}'.format(mode, mode_share_grouped[mode])
+        else:
+            print 'MODE SHARE'
+            print '----------'
+            for mode in sorted(self.modes.keys()):
+                print '{0:<25}{1:>10.2%}'.format(self._get_mode_str(mode), self.mode_share[mode])
+        print ' '
+        return None
+
+    def print_transit_stats(self, grouped=True):
+        ''' Print the boardings, passenger miles traveled and passenger hours
+            traveled, by mode or grouped. '''
+        print ' '
+        if grouped:
+            total_boardings = sum(self.transit_stats['BOARDINGS'].itervalues())
+            total_pmt = sum(self.transit_stats['PMT'].itervalues())
+            total_pht = sum(self.transit_stats['PHT'].itervalues())
+            print 'TRANSIT STATS'
+            print '-------------'
+            print ' {0:<15} | {1:<15} | {2:<15} '.format('Boardings', 'Pass. Miles', 'Pass. Hours')
+            print '{0:-<17}|{0:-<17}|{0:-<17}'.format('')
+            print ' {0:>15.0f} | {1:>15.0f} | {2:>15.0f} '.format(total_boardings, total_pmt, total_pht)
+        else:
+            print 'TRANSIT STATS BY MODE'
+            print '---------------------'
+            print ' {0:<20} | {1:<15} | {2:<15} | {3:<15} '.format('Mode', 'Boardings', 'Pass. Miles', 'Pass. Hours')
+            print '{0:-<22}|{0:-<17}|{0:-<17}|{0:-<17}'.format('')
+            for mode_code, mode_desc in sorted(self.transit_modes.iteritems(), key=lambda (k, v): v):
+                boardings = self.transit_stats['BOARDINGS'][mode_code]
+                pmt = self.transit_stats['PMT'][mode_code]
+                pht = self.transit_stats['PHT'][mode_code]
+                print ' {0:<20} | {1:>15.0f} | {2:>15.0f} | {3:>15.0f} '.format(mode_desc, boardings, pmt, pht)
+        print ' '
         return None
 
     def query(self, sql_query):
@@ -374,11 +499,9 @@ class Comparison(object):
     def print_mode_share_change(self, grouped=True):
         ''' Print the change in mode share, grouped into broader categories
             (default), or ungrouped. '''
-        base_mode_share = self.base.get_mode_share('Tours')
-        test_mode_share = self.test.get_mode_share('Tours')
         mode_share_diff = {}
-        for mode in sorted(base_mode_share.keys()):
-            mode_share_diff[mode] = test_mode_share[mode] - base_mode_share[mode]
+        for mode in sorted(ABM.modes.keys()):
+            mode_share_diff[mode] = self.test.mode_share[mode] - self.base.mode_share[mode]
         print ' '
         if grouped:
             mode_share_grouped_diff = {
@@ -392,8 +515,8 @@ class Comparison(object):
             for mode in sorted(mode_share_grouped_diff.keys()):
                 print '{0:<25}{1:>+10.2%}'.format(mode, mode_share_grouped_diff[mode])
         else:
-            print 'MODE SHARE CHANGE (UNGROUPED)'
-            print '-----------------------------'
+            print 'MODE SHARE CHANGE'
+            print '-----------------'
             for mode in sorted(mode_share_diff.keys()):
                 print '{0:<25}{1:>+10.2%}'.format(self.base._get_mode_str(mode), mode_share_diff[mode])
         print ' '
@@ -416,50 +539,84 @@ class Comparison(object):
         return None
 
     # Wrapper methods for print_new_for_mode():
-    def print_new_all(self):
+    def print_new_all(self, table='Trips'):
         ''' All-trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode(xrange(1, 15), 'Change in Total Trips')
-    def print_new_auto(self):
+        return self.print_new_for_mode(xrange(1, 15), 'Change in Total Trips', table)
+    def print_new_auto(self, table='Trips'):
         ''' Auto-trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode(xrange(1, 7), 'Change in Auto Trips')
-    def print_new_dtt(self):
+        return self.print_new_for_mode(xrange(1, 7), 'Change in Auto Trips', table)
+    def print_new_dtt(self, table='Trips'):
         ''' Drive-to-transit wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([11, 12], 'Change in Drive-to-Transit Trips')
-    def print_new_wtt(self):
+        return self.print_new_for_mode([11, 12], 'Change in Drive-to-Transit Trips', table)
+    def print_new_wtt(self, table='Trips'):
         ''' Walk-to-transit wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([9, 10], 'Change in Walk-to-Transit Trips')
-    def print_new_other(self):
+        return self.print_new_for_mode([9, 10], 'Change in Walk-to-Transit Trips', table)
+    def print_new_other(self, table='Trips'):
         ''' Walk/bike/taxi/school bus trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit Trips')
+        return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit Trips', table)
 
+    def print_transit_stats_change(self, grouped=True):
+        ''' Print the change in transit stats, by mode or grouped. '''
+        def stat_txt(stat_name, mode=None, is_grouped=grouped):
+            ''' Helper function to return formatted output text. '''
+            if is_grouped:
+                base_stat = sum(self.base.transit_stats[stat_name].itervalues())
+                test_stat = sum(self.test.transit_stats[stat_name].itervalues())
+            else:
+                base_stat = self.base.transit_stats[stat_name][mode]
+                test_stat = self.test.transit_stats[stat_name][mode]
+            stat_diff = test_stat - base_stat
+            stat_pct_diff = stat_diff / base_stat
+            return '{0:+.0f} ({1:+7.2%})'.format(stat_diff, stat_pct_diff)
+        print ' '
+        if grouped:
+            print 'TRANSIT STATS CHANGE'
+            print '--------------------'
+            print ' {0:<20} | {1:<20} | {2:<20} '.format('Boardings', 'Pass. Miles', 'Pass. Hours')
+            print '{0:-<22}|{0:-<22}|{0:-<22}'.format('')
+            brd_txt = stat_txt('BOARDINGS')
+            pmt_txt = stat_txt('PMT')
+            pht_txt = stat_txt('PHT')
+            print ' {0:>20} | {1:>20} | {2:>20} '.format(brd_txt, pmt_txt, pht_txt)
+        else:
+            print 'TRANSIT STATS CHANGE BY MODE'
+            print '----------------------------'
+            print ' {0:<20} | {1:<20} | {2:<20} | {3:<20} '.format('Mode', 'Boardings', 'Pass. Miles', 'Pass. Hours')
+            print '{0:-<22}|{0:-<22}|{0:-<22}|{0:-<22}'.format('')
+            for mode_code, mode_desc in sorted(ABM.transit_modes.iteritems(), key=lambda x: x[1]):
+                brd_txt = stat_txt('BOARDINGS', mode_code)
+                pmt_txt = stat_txt('PMT', mode_code)
+                pht_txt = stat_txt('PHT', mode_code)
+                print ' {0:<20} | {1:>20} | {2:>20} | {3:>20} '.format(mode_desc, brd_txt, pmt_txt, pht_txt)
+        print ' '
+        return None
 
 
 ### SCRIPT MODE ###
 def main():
     print '\n{0:=^50}'.format(' P R O C E S S I N G ')
-    print ' '
-    print 'BASE NETWORK'
-    print '------------'
+    print '\n*** BASE NETWORK ***\n'
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
+    base.print_mode_share()
+    base.print_transit_stats()
     print base
     print ' '
 
-    print ' '
-    print 'TEST NETWORK'
-    print '------------'
+    print '\n*** TEST NETWORK ***\n'
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
+    test.print_mode_share()
+    test.print_transit_stats()
     print test
     print ' '
 
-    print ' '
-    print 'COMPARISON'
-    print '----------'
+    print '\n*** COMPARISON ***\n'
     comp = Comparison(base, test)
     print comp
     print ' '
 
     print '\n{0:=^50}'.format(' R E S U L T S ')
     comp.print_mode_share_change()
+    comp.print_transit_stats_change()
     comp.print_new_all()
     comp.print_new_auto()
     comp.print_new_dtt()
