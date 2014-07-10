@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/9/14
+    Revised: 7/10/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -79,7 +79,7 @@ class ABM(object):
         self._con.commit()
 
         self.households = self._unsample(self._count_rows('Households'))
-        print '{0:<20}{1:>10.0f}'.format('-- Households:', self.households)
+        print '{0:<20}{1:>10,.0f}'.format('-- Households:', self.households)
 
         # -- Tours table
         print 'Loading tours into database...'
@@ -105,9 +105,9 @@ class ABM(object):
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
-        print '{0:<20}{1:>10.0f}'.format('-- Tours (indiv):', self.tours_indiv)
-        print '{0:<20}{1:>10.0f}'.format('-- Tours (joint):', self.tours_joint)
-        print '{0:<20}{1:>10.0f}'.format('-- Tours (total):', self.tours)
+        print '{0:<20}{1:>10,.0f}'.format('-- Tours (indiv):', self.tours_indiv)
+        print '{0:<20}{1:>10,.0f}'.format('-- Tours (joint):', self.tours_joint)
+        print '{0:<20}{1:>10,.0f}'.format('-- Tours (total):', self.tours)
 
         # -- Trips table
         print 'Loading trips into database...'
@@ -141,9 +141,9 @@ class ABM(object):
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
-        print '{0:<20}{1:>10.0f}'.format('-- Trips (indiv):', self.trips_indiv)
-        print '{0:<20}{1:>10.0f}'.format('-- Trips (joint):', self.trips_joint)
-        print '{0:<20}{1:>10.0f}'.format('-- Trips (total):', self.trips)
+        print '{0:<20}{1:>10,.0f}'.format('-- Trips (indiv):', self.trips_indiv)
+        print '{0:<20}{1:>10,.0f}'.format('-- Trips (joint):', self.trips_joint)
+        print '{0:<20}{1:>10,.0f}'.format('-- Trips (total):', self.trips)
 
         del self._matrices
 
@@ -166,7 +166,7 @@ class ABM(object):
         self._con.commit()
 
         self.transit_segments = self._count_rows('TransitSegs')
-        print '{0:<20}{1:>10.0f}'.format('-- Transit Segments:', self.transit_segments)
+        print '{0:<20}{1:>10,.0f}'.format('-- Transit Segments:', self.transit_segments)
 
         self.transit_stats = self._get_transit_stats()
         self.mode_share = self._get_mode_share()
@@ -448,7 +448,7 @@ class ABM(object):
             print '-------------'
             print ' {0:<15} | {1:<15} | {2:<15} '.format('Boardings', 'Pass. Miles', 'Pass. Hours')
             print '{0:-<17}|{0:-<17}|{0:-<17}'.format('')
-            print ' {0:>15.0f} | {1:>15.0f} | {2:>15.0f} '.format(total_boardings, total_pmt, total_pht)
+            print ' {0:>15,.0f} | {1:>15,.0f} | {2:>15,.0f} '.format(total_boardings, total_pmt, total_pht)
         else:
             print 'TRANSIT STATS BY MODE'
             print '---------------------'
@@ -458,7 +458,7 @@ class ABM(object):
                 boardings = self.transit_stats['BOARDINGS'][mode_code]
                 pmt = self.transit_stats['PMT'][mode_code]
                 pht = self.transit_stats['PHT'][mode_code]
-                print ' {0:<20} | {1:>15.0f} | {2:>15.0f} | {3:>15.0f} '.format(mode_desc, boardings, pmt, pht)
+                print ' {0:<20} | {1:>15,.0f} | {2:>15,.0f} | {3:>15,.0f} '.format(mode_desc, boardings, pmt, pht)
         print ' '
         return None
 
@@ -532,9 +532,9 @@ class Comparison(object):
         print ' '
         print mode_description.upper()
         print '-' * len(mode_description)
-        print '{0:<20}{1:>10.0f}'.format('Base daily {0}'.format(table.lower()), base_trips)
-        print '{0:<20}{1:>10.0f}'.format('Test daily {0}'.format(table.lower()), test_trips)
-        print '{0:<20}{1:>+10.0f} ({2:+.2%})'.format('Daily {0} change'.format(table.lower()), new_trips, pct_new_trips)
+        print '{0:<20}{1:>10,.0f}'.format('Base daily {0}'.format(table.lower()), base_trips)
+        print '{0:<20}{1:>10,.0f}'.format('Test daily {0}'.format(table.lower()), test_trips)
+        print '{0:<20}{1:>+10,.0f} ({2:+.2%})'.format('Daily {0} change'.format(table.lower()), new_trips, pct_new_trips)
         print ' '
         return None
 
@@ -567,7 +567,7 @@ class Comparison(object):
                 test_stat = self.test.transit_stats[stat_name][mode]
             stat_diff = test_stat - base_stat
             stat_pct_diff = stat_diff / base_stat
-            return '{0:+.0f} ({1:+7.2%})'.format(stat_diff, stat_pct_diff)
+            return '{0:+,.0f} ({1:+7.2%})'.format(stat_diff, stat_pct_diff)
         print ' '
         if grouped:
             print 'TRANSIT STATS CHANGE'
