@@ -594,27 +594,27 @@ class Comparison(object):
 
 ### SCRIPT MODE ###
 def main():
-    print '\n{0:=^50}'.format(' P R O C E S S I N G ')
-    print '\n*** BASE NETWORK ***\n'
+    print '\n{0:*^50}'.format(' P R O C E S S I N G ')
+    print '\n{0:=^50}\n'.format(' BASE NETWORK ')
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
     base.print_mode_share()
     base.print_transit_stats()
     print base
     print ' '
 
-    print '\n*** TEST NETWORK ***\n'
+    print '\n{0:=^50}\n'.format(' TEST NETWORK ')
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
     test.print_mode_share()
     test.print_transit_stats()
     print test
     print ' '
 
-    print '\n*** COMPARISON ***\n'
+    print '\n{0:=^50}\n'.format(' COMPARISON ')
     comp = Comparison(base, test)
     print comp
     print ' '
 
-    print '\n{0:=^50}'.format(' R E S U L T S ')
+    print '\n{0:*^50}'.format(' R E S U L T S ')
     comp.print_mode_share_change()
     comp.print_transit_stats_change()
     comp.print_new_all()
