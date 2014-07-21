@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/10/14
+    Revised: 7/21/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -34,6 +34,7 @@ class ABM(object):
         # Set CT-RAMP CSV paths
         self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
+        self._pers_data_csv = os.path.join(self._output_dir, 'personData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
         self._tours_joint_csv = os.path.join(self._output_dir, 'jointTourData_1.csv')
         self._trips_indiv_csv = os.path.join(self._output_dir, 'indivTripData_1.csv')
@@ -80,6 +81,26 @@ class ABM(object):
 
         self.households = self._unsample(self._count_rows('Households'))
         print '{0:<20}{1:>10,.0f}'.format('-- Households:', self.households)
+
+        # -- People table
+        print 'Loading people into database...'
+        self._con.execute('''CREATE TABLE People (
+            pers_id INTEGER PRIMARY KEY,
+            hh_id INTEGER,
+            pers_num INTEGER,
+            age INTEGER,
+            gender TEXT,
+            class_w_pnr INTEGER,
+            class_w_knr INTEGER,
+            class_o_pnr INTEGER,
+            class_o_knr INTEGER,
+            FOREIGN KEY (hh_id) REFERENCES Households(id)
+        )''')
+        self._insert_people(self._pers_data_csv)
+        self._con.commit()
+
+        self.people = self._unsample(self._count_rows('People'))
+        print '{0:<20}{1:>10,.0f}'.format('-- People:', self.people)
 
         # -- Tours table
         print 'Loading tours into database...'
@@ -306,6 +327,26 @@ class ABM(object):
                 db_row = (hh_id, sz, size)
                 insert_sql = 'INSERT INTO Households VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+        return None
+
+    def _insert_people(self, pers_csv):
+        ''' Populate the People table from a CSV. '''
+        with open(pers_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                pers_id = int(d['person_id'])
+                hh_id = int(d['hh_id'])
+                pers_num = int(d['person_num'])
+                age = int(d['age'])
+                gender = self._clean_str(d['gender'])
+                uc_w_p = int(d['user_class_work_pnr'])
+                uc_w_k = int(d['user_class_work_knr'])
+                uc_o_p = int(d['user_class_non_work_pnr'])
+                uc_o_k = int(d['user_class_non_work_knr'])
+                db_row = (pers_id, hh_id, pers_num, age, gender, uc_w_p, uc_w_k, uc_o_p, uc_o_k)
+                insert_sql = 'INSERT INTO People VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                self._con.execute(insert_sql, db_row)
+        return None
 
     def _insert_tours(self, tours_csv, is_joint):
         ''' Populate the Tours table from a CSV. '''
