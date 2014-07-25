@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/21/14
+    Revised: 7/25/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -85,7 +85,7 @@ class ABM(object):
         # -- People table
         print 'Loading people into database...'
         self._con.execute('''CREATE TABLE People (
-            pers_id INTEGER PRIMARY KEY,
+            pers_id TEXT PRIMARY KEY,
             hh_id INTEGER,
             pers_num INTEGER,
             age INTEGER,
@@ -94,7 +94,7 @@ class ABM(object):
             class_w_knr INTEGER,
             class_o_pnr INTEGER,
             class_o_knr INTEGER,
-            FOREIGN KEY (hh_id) REFERENCES Households(id)
+            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
         )''')
         self._insert_people(self._pers_data_csv)
         self._con.commit()
@@ -108,7 +108,7 @@ class ABM(object):
             tour_id TEXT PRIMARY KEY,
             hh_id INTEGER,
             participants TEXT,
-            pers_id TEXT,
+            pers_num TEXT,
             is_joint BOOLEAN,
             category TEXT,
             purpose TEXT,
@@ -117,7 +117,17 @@ class ABM(object):
             tod_d INTEGER,
             tod_a INTEGER,
             mode INTEGER,
-            FOREIGN KEY (hh_id) REFERENCES Households(id)
+            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+        )''')
+        self._con.execute('''CREATE TABLE PersonTours (
+            ptour_id TEXT PRIMARY KEY,
+            tour_id TEXT,
+            hh_id INTEGER,
+            pers_id TEXT,
+            mode INTEGER,
+            FOREIGN KEY (pers_id) REFERENCES People(pers_id),
+            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
         )''')
         self._insert_tours(self._tours_indiv_csv, is_joint=False)
         self._insert_tours(self._tours_joint_csv, is_joint=True)
@@ -126,9 +136,11 @@ class ABM(object):
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
+        self.person_tours = self._unsample(self._count_rows('PersonTours'))
         print '{0:<20}{1:>10,.0f}'.format('-- Tours (indiv):', self.tours_indiv)
         print '{0:<20}{1:>10,.0f}'.format('-- Tours (joint):', self.tours_joint)
         print '{0:<20}{1:>10,.0f}'.format('-- Tours (total):', self.tours)
+        print '{0:<20}{1:>10,.0f}'.format('-- Person-Tours:', self.person_tours)
 
         # -- Trips table
         print 'Loading trips into database...'
@@ -136,7 +148,7 @@ class ABM(object):
             trip_id TEXT PRIMARY KEY,
             tour_id TEXT,
             hh_id INTEGER,
-            pers_id TEXT,
+            pers_num TEXT,
             is_joint BOOLEAN,
             inbound BOOLEAN,
             purpose_o TEXT,
@@ -155,6 +167,20 @@ class ABM(object):
             FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
             FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
         )''')
+        self._con.execute('''CREATE TABLE PersonTrips (
+            ptrip_id TEXT PRIMARY KEY,
+            ptour_id TEXT,
+            trip_id TEXT,
+            tour_id TEXT,
+            hh_id INTEGER,
+            pers_id TEXT,
+            mode INTEGER,
+            FOREIGN KEY (pers_id) REFERENCES People(pers_id),
+            FOREIGN KEY (trip_id) REFERENCES Trips(trip_id),
+            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+            FOREIGN KEY (ptour_id) REFERENCES PersonTours(ptour_id),
+            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+        )''')
         self._insert_trips(self._trips_indiv_csv, is_joint=False)
         self._insert_trips(self._trips_joint_csv, is_joint=True)
         self._con.commit()
@@ -162,9 +188,11 @@ class ABM(object):
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
+        self.person_trips = self._unsample(self._count_rows('PersonTrips'))
         print '{0:<20}{1:>10,.0f}'.format('-- Trips (indiv):', self.trips_indiv)
         print '{0:<20}{1:>10,.0f}'.format('-- Trips (joint):', self.trips_joint)
         print '{0:<20}{1:>10,.0f}'.format('-- Trips (total):', self.trips)
+        print '{0:<20}{1:>10,.0f}'.format('-- Person-Trips:', self.person_trips)
 
         del self._matrices
 
@@ -334,9 +362,9 @@ class ABM(object):
         with open(pers_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
-                pers_id = int(d['person_id'])
                 hh_id = int(d['hh_id'])
                 pers_num = int(d['person_num'])
+                pers_id = '{0}-{1}'.format(hh_id, pers_num)  # NOTE: NOT the 'person_id' value from CSV
                 age = int(d['age'])
                 gender = self._clean_str(d['gender'])
                 uc_w_p = int(d['user_class_work_pnr'])
@@ -349,13 +377,13 @@ class ABM(object):
         return None
 
     def _insert_tours(self, tours_csv, is_joint):
-        ''' Populate the Tours table from a CSV. '''
+        ''' Populate the Tours and PersonTours tables from a CSV. '''
         with open(tours_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
                 hh_id = int(d['hh_id'])
                 participants = str(d['tour_participants']) if is_joint else str(d['person_num'])
-                pers_id = 'J' if is_joint else participants
+                pers_num = 'J' if is_joint else participants
                 tour_num = int(d['tour_id'])
                 purpose = self._clean_str(str(d['tour_purpose']))
                 category = self._clean_str(str(d['tour_category']))
@@ -364,22 +392,32 @@ class ABM(object):
                 tod_d = self._convert_time_period(int(d['depart_period']))
                 tod_a = self._convert_time_period(int(d['arrive_period']))
                 mode = int(d['tour_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose)
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_num, tour_num, purpose)
                 db_row = (
-                    tour_id, hh_id, participants, pers_id, is_joint, category,
+                    tour_id, hh_id, participants, pers_num, is_joint, category,
                     purpose, sz_o, sz_d, tod_d, tod_a, mode
                 )
                 insert_sql = 'INSERT INTO Tours VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+
+                for participant in participants.strip().split():
+                    pers_id = '{0}-{1}'.format(hh_id, participant)
+                    ptour_id = '{0}-{1}'.format(tour_id, participant)
+                    db_row = (
+                        ptour_id, tour_id, hh_id, pers_id, mode
+                    )
+                    insert_sql = 'INSERT INTO PersonTours VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                    self._con.execute(insert_sql, db_row)
+
         return None
 
     def _insert_trips(self, trips_csv, is_joint):
-        ''' Populate the Trips table from a CSV. '''
+        ''' Populate the Trips and PersonTrips tables from a CSV. '''
         with open(trips_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
                 hh_id = int(d['hh_id'])
-                pers_id = 'J' if is_joint else str(d['person_num'])
+                pers_num = 'J' if is_joint else str(d['person_num'])
                 tour_num = int(d['tour_id'])
                 purpose_t = self._clean_str(str(d['tour_purpose']))
                 inbound = int(d['inbound'])
@@ -394,7 +432,7 @@ class ABM(object):
                 tap_d = int(d['alight_tap'])
                 tod = self._convert_time_period(int(d['stop_period']))
                 mode = int(d['trip_mode'])
-                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_id, tour_num, purpose_t)
+                tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_num, tour_num, purpose_t)
                 trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
 
                 # Estimate DRIVE time, distance, speed
@@ -415,12 +453,24 @@ class ABM(object):
                 speed = distance / (time / 60) if (time and distance) else 0
 
                 db_row = (
-                    trip_id, tour_id, hh_id, pers_id, is_joint, inbound,
+                    trip_id, tour_id, hh_id, pers_num, is_joint, inbound,
                     purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
                     tod, mode, time, distance, speed
                 )
                 insert_sql = 'INSERT INTO Trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+
+                tour_participants = [r[0] for r in self.query("SELECT participants FROM Tours WHERE tour_id = '{0}'".format(tour_id))][0]
+                for participant in tour_participants.strip().split():
+                    pers_id = '{0}-{1}'.format(hh_id, participant)
+                    ptour_id = '{0}-{1}'.format(tour_id, participant)
+                    ptrip_id = '{0}-{1}'.format(trip_id, participant)
+                    db_row = (
+                        ptrip_id, ptour_id, trip_id, tour_id, hh_id, pers_id, mode
+                    )
+                    insert_sql = 'INSERT INTO PersonTrips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
+                    self._con.execute(insert_sql, db_row)
+
         return None
 
     def _insert_tsegs(self):
@@ -564,7 +614,7 @@ class Comparison(object):
         return None
 
     def print_new_for_mode(self, mode_list, mode_description, table='Trips'):
-        ''' Identify the increase (or decrease) in trips for a given set of modes. '''
+        ''' Identify the increase (or decrease) in trips/tours for a given set of modes. '''
         sql_where = ' or '.join(('mode={0}'.format(mode) for mode in mode_list))
         base_trips = self.base._unsample(self.base._count_rows(table, sql_where))
         test_trips = self.test._unsample(self.test._count_rows(table, sql_where))
@@ -573,28 +623,28 @@ class Comparison(object):
         print ' '
         print mode_description.upper()
         print '-' * len(mode_description)
-        print '{0:<20}{1:>10,.0f}'.format('Base daily {0}'.format(table.lower()), base_trips)
-        print '{0:<20}{1:>10,.0f}'.format('Test daily {0}'.format(table.lower()), test_trips)
-        print '{0:<20}{1:>+10,.0f} ({2:+.2%})'.format('Daily {0} change'.format(table.lower()), new_trips, pct_new_trips)
+        print '{0:<25}{1:>10,.0f}'.format('Base daily {0}'.format(table.lower()), base_trips)
+        print '{0:<25}{1:>10,.0f}'.format('Test daily {0}'.format(table.lower()), test_trips)
+        print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('Daily {0} change'.format(table.lower()), new_trips, pct_new_trips)
         print ' '
         return None
 
     # Wrapper methods for print_new_for_mode():
     def print_new_all(self, table='Trips'):
         ''' All-trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode(xrange(1, 15), 'Change in Total Trips', table)
+        return self.print_new_for_mode(xrange(1, 15), 'Change in Total {0}'.format(table), table)
     def print_new_auto(self, table='Trips'):
         ''' Auto-trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode(xrange(1, 7), 'Change in Auto Trips', table)
+        return self.print_new_for_mode(xrange(1, 7), 'Change in Auto {0}'.format(table), table)
     def print_new_dtt(self, table='Trips'):
         ''' Drive-to-transit wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([11, 12], 'Change in Drive-to-Transit Trips', table)
+        return self.print_new_for_mode([11, 12], 'Change in Drive-to-Transit {0}'.format(table), table)
     def print_new_wtt(self, table='Trips'):
         ''' Walk-to-transit wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([9, 10], 'Change in Walk-to-Transit Trips', table)
+        return self.print_new_for_mode([9, 10], 'Change in Walk-to-Transit {0}'.format(table), table)
     def print_new_other(self, table='Trips'):
         ''' Walk/bike/taxi/school bus trips wrapper for print_new_for_mode(). '''
-        return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit Trips', table)
+        return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit {0}'.format(table), table)
 
     def print_transit_stats_change(self, grouped=True):
         ''' Print the change in transit stats, by mode or grouped. '''
