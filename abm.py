@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/25/14
+    Revised: 7/28/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -90,8 +90,10 @@ class ABM(object):
             pers_num INTEGER,
             age INTEGER,
             gender TEXT,
+            class_w_wtt INTEGER,
             class_w_pnr INTEGER,
             class_w_knr INTEGER,
+            class_o_wtt INTEGER,
             class_o_pnr INTEGER,
             class_o_knr INTEGER,
             FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
@@ -219,6 +221,7 @@ class ABM(object):
 
         self.transit_stats = self._get_transit_stats()
         self.mode_share = self._get_mode_share()
+        self.ridership_by_class = self._get_ridership_by_class()
 
         return None  ### End of ABM.__init__() ###
 
@@ -328,6 +331,35 @@ class ABM(object):
             mode_share[mode] = self._count_rows(table, 'mode={0}'.format(mode)) / table_rows
         return mode_share
 
+    def _get_ridership_by_class(self):
+        ''' Return count of transit person-trips, split by user class (1-3). '''
+        ridership_by_class = {1: 0.0, 2: 0.0, 3: 0.0}
+        sql = ('SELECT PersonTrips.mode, Tours.category, People.class_w_wtt, People.class_w_pnr, People.class_w_knr, People.class_o_wtt, People.class_o_pnr, People.class_o_knr '
+               'FROM PersonTrips LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id LEFT JOIN People ON PersonTrips.pers_id = People.pers_id '
+               'WHERE PersonTrips.mode IN (9, 10, 11, 12)')
+
+        for r in self.query(sql):
+            mode = r[0]
+            category = r[1]
+
+            if category == 'mandatory':  # Use "work" user classes
+                wtt = r[2]
+                pnr = r[3]
+                knr = r[4]
+            else:  # Use "non-work" user classes
+                wtt = r[5]
+                pnr = r[6]
+                knr = r[7]
+
+            if mode in (9, 10):
+                uclass = wtt
+            else:
+                uclass = max(pnr, knr)
+
+            ridership_by_class[uclass] += self._unsample(1.0)
+
+        return ridership_by_class
+
     def _get_transit_stats(self):
         ''' Return the boardings, passenger miles traveled and passenger hours
             traveled, by mode. '''
@@ -367,11 +399,13 @@ class ABM(object):
                 pers_id = '{0}-{1}'.format(hh_id, pers_num)  # NOTE: NOT the 'person_id' value from CSV
                 age = int(d['age'])
                 gender = self._clean_str(d['gender'])
+                uc_w_w = int(d['user_class_work_walk'])
                 uc_w_p = int(d['user_class_work_pnr'])
                 uc_w_k = int(d['user_class_work_knr'])
+                uc_o_w = int(d['user_class_non_work_walk'])
                 uc_o_p = int(d['user_class_non_work_pnr'])
                 uc_o_k = int(d['user_class_non_work_knr'])
-                db_row = (pers_id, hh_id, pers_num, age, gender, uc_w_p, uc_w_k, uc_o_p, uc_o_k)
+                db_row = (pers_id, hh_id, pers_num, age, gender, uc_w_w, uc_w_p, uc_w_k, uc_o_w, uc_o_p, uc_o_k)
                 insert_sql = 'INSERT INTO People VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
         return None
@@ -527,6 +561,19 @@ class ABM(object):
         print ' '
         return None
 
+    def print_ridership_by_class(self):
+        ''' Print the number and percentage of transit person-trips, stratified
+            by user class. '''
+        print ' '
+        print 'TRANSIT RIDERSHIP BY USER CLASS'
+        print '-------------------------------'
+        for uclass in sorted(self.ridership_by_class.keys()):
+            ridership = self.ridership_by_class[uclass]
+            ridership_pct = ridership / sum(self.ridership_by_class.itervalues())
+            print 'User Class {0}: {1:>10,.0f} ({2:.2%})'.format(uclass, ridership, ridership_pct)
+        print ' '
+        return None
+
     def print_transit_stats(self, grouped=True):
         ''' Print the boardings, passenger miles traveled and passenger hours
             traveled, by mode or grouped. '''
@@ -646,6 +693,20 @@ class Comparison(object):
         ''' Walk/bike/taxi/school bus trips wrapper for print_new_for_mode(). '''
         return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit {0}'.format(table), table)
 
+    def print_ridership_by_class_change(self):
+        ''' Print the change in transit ridership by user class. '''
+        print ' '
+        print 'CHANGE IN TRANSIT RIDERSHIP BY USER CLASS'
+        print '-----------------------------------------'
+        for uclass in sorted(self.base.ridership_by_class.keys()):
+            base_ridership = self.base.ridership_by_class[uclass]
+            test_ridership = self.test.ridership_by_class[uclass]
+            ridership_diff = test_ridership - base_ridership
+            ridership_pct_diff = ridership_diff / sum(self.base.ridership_by_class.itervalues())
+            print 'User Class {0}: {1:>+7,.0f} ({2:+.2%})'.format(uclass, ridership_diff, ridership_pct_diff)
+        print ' '
+        return None
+
     def print_transit_stats_change(self, grouped=True):
         ''' Print the change in transit stats, by mode or grouped. '''
         def stat_txt(stat_name, mode=None, is_grouped=grouped):
@@ -690,6 +751,7 @@ def main():
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
     base.print_mode_share()
     base.print_transit_stats()
+    base.print_ridership_by_class()
     print base
     print ' '
 
@@ -697,6 +759,7 @@ def main():
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
     test.print_mode_share()
     test.print_transit_stats()
+    test.print_ridership_by_class()
     print test
     print ' '
 
