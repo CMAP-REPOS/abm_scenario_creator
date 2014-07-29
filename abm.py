@@ -567,10 +567,12 @@ class ABM(object):
         print ' '
         print 'TRANSIT RIDERSHIP BY USER CLASS'
         print '-------------------------------'
+        total_ridership = sum(self.ridership_by_class.itervalues())
         for uclass in sorted(self.ridership_by_class.keys()):
             ridership = self.ridership_by_class[uclass]
-            ridership_pct = ridership / sum(self.ridership_by_class.itervalues())
-            print 'User Class {0}: {1:>10,.0f} ({2:.2%})'.format(uclass, ridership, ridership_pct)
+            ridership_pct = ridership / total_ridership
+            print '{0:<25}{1:>10,.0f} ({2:.2%})'.format('User Class {0}'.format(uclass), ridership, ridership_pct)
+        print '{0:<25}{1:>10,.0f}'.format('All User Classes', total_ridership)
         print ' '
         return None
 
@@ -698,12 +700,17 @@ class Comparison(object):
         print ' '
         print 'CHANGE IN TRANSIT RIDERSHIP BY USER CLASS'
         print '-----------------------------------------'
+        total_base_ridership = sum(self.base.ridership_by_class.itervalues())
+        total_test_ridership = sum(self.test.ridership_by_class.itervalues())
+        total_ridership_diff = total_test_ridership - total_base_ridership
+        total_pct_diff = total_ridership_diff / total_base_ridership
         for uclass in sorted(self.base.ridership_by_class.keys()):
             base_ridership = self.base.ridership_by_class[uclass]
             test_ridership = self.test.ridership_by_class[uclass]
             ridership_diff = test_ridership - base_ridership
-            ridership_pct_diff = ridership_diff / sum(self.base.ridership_by_class.itervalues())
-            print 'User Class {0}: {1:>+7,.0f} ({2:+.2%})'.format(uclass, ridership_diff, ridership_pct_diff)
+            ridership_pct_diff = ridership_diff / total_base_ridership
+            print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('User Class {0}'.format(uclass), ridership_diff, ridership_pct_diff)
+        print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('All User Classes', total_ridership_diff, total_pct_diff)
         print ' '
         return None
 
@@ -771,6 +778,7 @@ def main():
     print '\n{0:*^50}'.format(' R E S U L T S ')
     comp.print_mode_share_change()
     comp.print_transit_stats_change()
+    comp.print_ridership_by_class_change()
     comp.print_new_all()
     comp.print_new_auto()
     comp.print_new_dtt()
