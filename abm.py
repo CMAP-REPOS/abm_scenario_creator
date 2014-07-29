@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/28/14
+    Revised: 7/29/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -25,8 +25,8 @@ class ABM(object):
         self.name = os.path.basename(self.dir)
         self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
-        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## CHANGE LATER
-        self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER
+        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## CHANGE LATER ##########
+        self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER ##########
         if os.path.exists(self._db):
             print 'Removing existing database...'
             os.remove(self._db)
@@ -565,8 +565,8 @@ class ABM(object):
         ''' Print the number and percentage of transit person-trips, stratified
             by user class. '''
         print ' '
-        print 'TRANSIT RIDERSHIP BY USER CLASS'
-        print '-------------------------------'
+        print 'TRANSIT PERSON-TRIPS BY USER CLASS'
+        print '----------------------------------'
         total_ridership = sum(self.ridership_by_class.itervalues())
         for uclass in sorted(self.ridership_by_class.keys()):
             ridership = self.ridership_by_class[uclass]
@@ -698,8 +698,8 @@ class Comparison(object):
     def print_ridership_by_class_change(self):
         ''' Print the change in transit ridership by user class. '''
         print ' '
-        print 'CHANGE IN TRANSIT RIDERSHIP BY USER CLASS'
-        print '-----------------------------------------'
+        print 'CHANGE IN TRANSIT PERSON-TRIPS BY USER CLASS'
+        print '--------------------------------------------'
         total_base_ridership = sum(self.base.ridership_by_class.itervalues())
         total_test_ridership = sum(self.test.ridership_by_class.itervalues())
         total_ridership_diff = total_test_ridership - total_base_ridership
