@@ -2,7 +2,7 @@
 '''
     abm.py
     Author: npeterson
-    Revised: 7/29/14
+    Revised: 7/30/14
     ---------------------------------------------------------------------------
     A module for reading ABM output files and matrix data into an SQL database
     for querying and summarization.
@@ -25,7 +25,7 @@ class ABM(object):
         self.name = os.path.basename(self.dir)
         self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
-        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## CHANGE LATER ##########
+        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## REMOVE LATER ##########
         self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER ##########
         if os.path.exists(self._db):
             print 'Removing existing database...'
@@ -221,7 +221,7 @@ class ABM(object):
 
         self.transit_stats = self._get_transit_stats()
         self.mode_share = self._get_mode_share()
-        self.ridership_by_class = self._get_ridership_by_class()
+        self.ptrips_by_class = self._get_ptrips_by_class()
 
         return None  ### End of ABM.__init__() ###
 
@@ -331,12 +331,33 @@ class ABM(object):
             mode_share[mode] = self._count_rows(table, 'mode={0}'.format(mode)) / table_rows
         return mode_share
 
-    def _get_ridership_by_class(self):
+    def _get_ptrips_by_class(self, stratify_by_field=None):
         ''' Return count of transit person-trips, split by user class (1-3). '''
-        ridership_by_class = {1: 0.0, 2: 0.0, 3: 0.0}
-        sql = ('SELECT PersonTrips.mode, Tours.category, People.class_w_wtt, People.class_w_pnr, People.class_w_knr, People.class_o_wtt, People.class_o_pnr, People.class_o_knr '
-               'FROM PersonTrips LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id LEFT JOIN People ON PersonTrips.pers_id = People.pers_id '
-               'WHERE PersonTrips.mode IN (9, 10, 11, 12)')
+        ptrips_dict_template = {1: 0.0, 2: 0.0, 3: 0.0}
+        sql_select = 'SELECT PersonTrips.mode, Tours.category, People.class_w_wtt, People.class_w_pnr, People.class_w_knr, People.class_o_wtt, People.class_o_pnr, People.class_o_knr'
+        sql_from = 'FROM PersonTrips LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id LEFT JOIN People ON PersonTrips.pers_id=People.pers_id'
+        sql_where = 'WHERE PersonTrips.mode IN (9, 10, 11, 12)'
+
+        if stratify_by_field:
+            sql_select += ', {0}'.format(stratify_by_field)
+            if stratify_by_field.lower().startswith('trips.'):
+                sql_from += ' LEFT JOIN Trips ON PersonTrips.trip_id=Trips.trip_id'
+            elif stratify_by_field.lower().startswith('households.'):
+                sql_from += ' LEFT JOIN Households ON PersonTrips.hh_id=Households.hh_id'
+            elif stratify_by_field.lower().startswith('persontours.'):
+                sql_from += ' LEFT JOIN PersonTours ON PersonTrips.ptour_id=PersonTours.ptour_id'
+
+            table, field = stratify_by_field.split('.')
+            sql_groups = 'SELECT DISTINCT {0} FROM {1}'.format(field, table)
+            groups = [r[0] for r in self.query(sql_groups)]
+        else:
+            groups = [None]
+
+        sql = ' '.join((sql_select, sql_from, sql_where))
+
+        ptrips_by_class = {}
+        for group in groups:
+            ptrips_by_class[group] = ptrips_dict_template.copy()
 
         for r in self.query(sql):
             mode = r[0]
@@ -356,9 +377,17 @@ class ABM(object):
             else:
                 uclass = max(pnr, knr)
 
-            ridership_by_class[uclass] += self._unsample(1.0)
+            if stratify_by_field:
+                group = r[8]
+            else:
+                group = None
 
-        return ridership_by_class
+            ptrips_by_class[group][uclass] += self._unsample(1.0)
+
+        if stratify_by_field:
+            return ptrips_by_class
+        else:
+            return ptrips_by_class[None]
 
     def _get_transit_stats(self):
         ''' Return the boardings, passenger miles traveled and passenger hours
@@ -561,18 +590,18 @@ class ABM(object):
         print ' '
         return None
 
-    def print_ridership_by_class(self):
+    def print_ptrips_by_class(self):
         ''' Print the number and percentage of transit person-trips, stratified
             by user class. '''
         print ' '
         print 'TRANSIT PERSON-TRIPS BY USER CLASS'
         print '----------------------------------'
-        total_ridership = sum(self.ridership_by_class.itervalues())
-        for uclass in sorted(self.ridership_by_class.keys()):
-            ridership = self.ridership_by_class[uclass]
-            ridership_pct = ridership / total_ridership
-            print '{0:<25}{1:>10,.0f} ({2:.2%})'.format('User Class {0}'.format(uclass), ridership, ridership_pct)
-        print '{0:<25}{1:>10,.0f}'.format('All User Classes', total_ridership)
+        total_ptrips = sum(self.ptrips_by_class.itervalues())
+        for uclass in sorted(self.ptrips_by_class.keys()):
+            ptrips = self.ptrips_by_class[uclass]
+            ptrips_pct = ptrips / total_ptrips
+            print '{0:<25}{1:>10,.0f} ({2:.2%})'.format('User Class {0}'.format(uclass), ptrips, ptrips_pct)
+        print '{0:<25}{1:>10,.0f}'.format('All User Classes', total_ptrips)
         print ' '
         return None
 
@@ -628,6 +657,62 @@ class Comparison(object):
         ''' Close base & test ABM database connections. '''
         self.base.close_db()
         self.test.close_db()
+        return None
+
+    def export_persontrips_csv(self, csv_path, geography='zone', trip_end='origin'):
+        ''' Export a CSV file containing the mean base & test user classes for
+            person-trips originating/ending in each zone/subzone. '''
+        if trip_end not in ('origin', 'destination'):
+            print 'CSV not exported: trip_end must be "origin" or "destination"!'
+            return None
+        elif geography == 'zone':
+            group_field = 'Trips.zn_{0}'.format(trip_end[0])
+        elif geography == 'subzone':
+            group_field = 'Trips.sz_{0}'.format(trip_end[0])
+        else:
+            print 'CSV not exported: geography must be "zone" or "subzone"!'
+            return None
+
+        max_id = {
+            'zone': 1944,
+            'subzone': 16819
+        }
+
+        grouped_base_ptrips_by_class = self.base._get_ptrips_by_class(group_field)
+        grouped_test_ptrips_by_class = self.test._get_ptrips_by_class(group_field)
+
+        with open(csv_path, 'wb') as w:
+            w.write('{0}_{1},persontrips_base,mean_uclass_base,persontrips_test,mean_uclass_test,persontrips_diff,mean_uclass_diff\n'.format(geography, trip_end[0]))
+            for geog_id in xrange(1, max_id[geography]+1):
+                where_filter = '{0} = {1}'.format(group_field, geog_id)
+
+                if geog_id in grouped_base_ptrips_by_class:
+                    base_ptrips_by_class = grouped_base_ptrips_by_class[geog_id]
+                    base_ptrips_total = sum(base_ptrips_by_class.itervalues())
+                    if base_ptrips_total > 0:
+                        mean_uclass_base = sum((uc * n for uc, n in base_ptrips_by_class.iteritems())) / base_ptrips_total
+                    else:
+                        mean_uclass_base = 0
+                else:
+                    mean_uclass_base = 0
+
+                if geog_id in grouped_test_ptrips_by_class:
+                    test_ptrips_by_class = grouped_test_ptrips_by_class[geog_id]
+                    test_ptrips_total = sum(test_ptrips_by_class.itervalues())
+                    if test_ptrips_total > 0:
+                        mean_uclass_test = sum((uc * n for uc, n in test_ptrips_by_class.iteritems())) / test_ptrips_total
+                    else:
+                        mean_uclass_test = 0
+                else:
+                    mean_uclass_test = 0
+
+                ptrips_total_diff = test_ptrips_total - base_ptrips_total
+                mean_uclass_diff = mean_uclass_test - mean_uclass_base
+
+                row_template = '{0},{1:.0f},{2:.4f},{3:.0f},{4:.4f},{5:.0f},{6:.4f}\n'
+                w.write(row_template.format(geog_id, base_ptrips_total, mean_uclass_base, test_ptrips_total, mean_uclass_test, ptrips_total_diff, mean_uclass_diff))
+
+        print 'Person-trips and mean user class by {0} {1} have been exported to {2}.'.format(trip_end, geography, csv_path)
         return None
 
     def open_dbs(self):
@@ -695,22 +780,22 @@ class Comparison(object):
         ''' Walk/bike/taxi/school bus trips wrapper for print_new_for_mode(). '''
         return self.print_new_for_mode([7, 8, 13, 14], 'Change in Non-Auto, Non-Transit {0}'.format(table), table)
 
-    def print_ridership_by_class_change(self):
-        ''' Print the change in transit ridership by user class. '''
+    def print_ptrips_by_class_change(self):
+        ''' Print the change in transit person-trips by user class. '''
         print ' '
         print 'CHANGE IN TRANSIT PERSON-TRIPS BY USER CLASS'
         print '--------------------------------------------'
-        total_base_ridership = sum(self.base.ridership_by_class.itervalues())
-        total_test_ridership = sum(self.test.ridership_by_class.itervalues())
-        total_ridership_diff = total_test_ridership - total_base_ridership
-        total_pct_diff = total_ridership_diff / total_base_ridership
-        for uclass in sorted(self.base.ridership_by_class.keys()):
-            base_ridership = self.base.ridership_by_class[uclass]
-            test_ridership = self.test.ridership_by_class[uclass]
-            ridership_diff = test_ridership - base_ridership
-            ridership_pct_diff = ridership_diff / total_base_ridership
-            print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('User Class {0}'.format(uclass), ridership_diff, ridership_pct_diff)
-        print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('All User Classes', total_ridership_diff, total_pct_diff)
+        total_base_ptrips = sum(self.base.ptrips_by_class.itervalues())
+        total_test_ptrips = sum(self.test.ptrips_by_class.itervalues())
+        total_ptrips_diff = total_test_ptrips - total_base_ptrips
+        total_pct_diff = total_ptrips_diff / total_base_ptrips
+        for uclass in sorted(self.base.ptrips_by_class.keys()):
+            base_ptrips = self.base.ptrips_by_class[uclass]
+            test_ptrips = self.test.ptrips_by_class[uclass]
+            ptrips_diff = test_ptrips - base_ptrips
+            ptrips_pct_diff = ptrips_diff / total_base_ptrips
+            print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('User Class {0}'.format(uclass), ptrips_diff, ptrips_pct_diff)
+        print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('All User Classes', total_ptrips_diff, total_pct_diff)
         print ' '
         return None
 
@@ -758,7 +843,7 @@ def main():
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
     base.print_mode_share()
     base.print_transit_stats()
-    base.print_ridership_by_class()
+    base.print_ptrips_by_class()
     print base
     print ' '
 
@@ -766,7 +851,7 @@ def main():
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
     test.print_mode_share()
     test.print_transit_stats()
-    test.print_ridership_by_class()
+    test.print_ptrips_by_class()
     print test
     print ' '
 
@@ -778,7 +863,11 @@ def main():
     print '\n{0:*^50}'.format(' R E S U L T S ')
     comp.print_mode_share_change()
     comp.print_transit_stats_change()
-    comp.print_ridership_by_class_change()
+    comp.print_ptrips_by_class_change()
+    comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_zn_o.csv'), 'zone', 'origin')
+    comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_zn_d.csv'), 'zone', 'destination')
+    comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_sz_o.csv'), 'subzone', 'origin')
+    comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_sz_d.csv'), 'subzone', 'destination')
     comp.print_new_all()
     comp.print_new_auto()
     comp.print_new_dtt()
