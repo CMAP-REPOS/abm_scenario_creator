@@ -603,8 +603,8 @@ class ABM(object):
         ''' Print the number and percentage of transit person-trips, stratified
             by user class. '''
         print ' '
-        print 'TRANSIT PERSON-TRIPS BY USER CLASS'
-        print '----------------------------------'
+        print 'LINKED TRANSIT PERSON-TRIPS BY USER CLASS'
+        print '-----------------------------------------'
         total_ptrips = sum(self.ptrips_by_class.itervalues())
         for uclass in sorted(self.ptrips_by_class.keys()):
             ptrips = self.ptrips_by_class[uclass]
@@ -792,8 +792,8 @@ class Comparison(object):
     def print_ptrips_by_class_change(self):
         ''' Print the change in transit person-trips by user class. '''
         print ' '
-        print 'CHANGE IN TRANSIT PERSON-TRIPS BY USER CLASS'
-        print '--------------------------------------------'
+        print 'CHANGE IN LINKED TRANSIT PERSON-TRIPS BY USER CLASS'
+        print '---------------------------------------------------'
         total_base_ptrips = sum(self.base.ptrips_by_class.itervalues())
         total_test_ptrips = sum(self.test.ptrips_by_class.itervalues())
         total_ptrips_diff = total_test_ptrips - total_base_ptrips
