@@ -19,7 +19,7 @@ class ABM(object):
     ''' A class for loading ABM model run output data into a SQLite database.
         Initialized with path (parent directory of 'model') and model run
         sample rate (default 0.05). '''
-    def __init__(self, abm_dir, sample_rate=0.05):
+    def __init__(self, abm_dir, sample_rate=0.05, build_db=True):
         self.dir = abm_dir
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
@@ -27,9 +27,11 @@ class ABM(object):
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
         self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## REMOVE LATER ##########
         self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER ##########
-        if os.path.exists(self._db):
+        if build_db and os.path.exists(self._db):
             print 'Removing existing database...'
             os.remove(self._db)
+        if not build_db and not os.path.exists(self._db):
+            raise ValueError('SQLite database does not yet exist. Please set build_db=True.')
 
         # Set CT-RAMP CSV paths
         self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
@@ -41,18 +43,19 @@ class ABM(object):
         self._trips_joint_csv = os.path.join(self._output_dir, 'jointTripData_1.csv')
 
         # Open Emmebank and load highway matrices
-        print 'Loading Emme matrices in memory...'
-        self._emmebank_path = os.path.join(self.dir, 'model', 'CMAP-ABM', 'Database', 'emmebank')
-        self._emmebank = _eb.Emmebank(self._emmebank_path)
-        self._matrices = {}
-        for mode in xrange(1, 7):
-            self._matrices[mode] = {}
-            t, d = self._get_matrix_nums(mode)
-            for tod in xrange(1, 9):
-                self._matrices[mode][tod] = {}
-                self._matrices[mode][tod]['t'] = self._emmebank.matrix('mf{0}{1}'.format(tod, t)).get_data(tod)
-                self._matrices[mode][tod]['d'] = self._emmebank.matrix('mf{0}{1}'.format(tod, d)).get_data(tod)
-        self._emmebank.dispose()  # Close Emmebank, remove lock
+        if build_db:
+            print 'Loading Emme matrices in memory...'
+            self._emmebank_path = os.path.join(self.dir, 'model', 'CMAP-ABM', 'Database', 'emmebank')
+            self._emmebank = _eb.Emmebank(self._emmebank_path)
+            self._matrices = {}
+            for mode in xrange(1, 7):
+                self._matrices[mode] = {}
+                t, d = self._get_matrix_nums(mode)
+                for tod in xrange(1, 9):
+                    self._matrices[mode][tod] = {}
+                    self._matrices[mode][tod]['t'] = self._emmebank.matrix('mf{0}{1}'.format(tod, t)).get_data(tod)
+                    self._matrices[mode][tod]['d'] = self._emmebank.matrix('mf{0}{1}'.format(tod, d)).get_data(tod)
+            self._emmebank.dispose()  # Close Emmebank, remove lock
 
         # Load TAP data
         print 'Loading TAP data into memory...'
@@ -65,75 +68,78 @@ class ABM(object):
                 self.tap_zones[tap] = zone
 
         # Create DB to store CT-RAMP output
-        print 'Initializing database ({0})...'.format(self._db)
+        print 'Opening database ({0})...'.format(self._db)
         self.open_db()
 
         # Load data from CSVs
         # -- Households table
-        print 'Loading households into database...'
-        self._con.execute('''CREATE TABLE Households (
-            hh_id INTEGER PRIMARY KEY,
-            sz INTEGER,
-            size INTEGER
-        )''')
-        self._insert_households(self._hh_data_csv)
-        self._con.commit()
+        print 'Processing households...'
+        if build_db:
+            self._con.execute('''CREATE TABLE Households (
+                hh_id INTEGER PRIMARY KEY,
+                sz INTEGER,
+                size INTEGER
+            )''')
+            self._insert_households(self._hh_data_csv)
+            self._con.commit()
 
         self.households = self._unsample(self._count_rows('Households'))
         print '{0:<20}{1:>10,.0f}'.format('-- Households:', self.households)
 
         # -- People table
-        print 'Loading people into database...'
-        self._con.execute('''CREATE TABLE People (
-            pers_id TEXT PRIMARY KEY,
-            hh_id INTEGER,
-            pers_num INTEGER,
-            age INTEGER,
-            gender TEXT,
-            class_w_wtt INTEGER,
-            class_w_pnr INTEGER,
-            class_w_knr INTEGER,
-            class_o_wtt INTEGER,
-            class_o_pnr INTEGER,
-            class_o_knr INTEGER,
-            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
-        )''')
-        self._insert_people(self._pers_data_csv)
-        self._con.commit()
+        print 'Processing people...'
+        if build_db:
+            self._con.execute('''CREATE TABLE People (
+                pers_id TEXT PRIMARY KEY,
+                hh_id INTEGER,
+                pers_num INTEGER,
+                age INTEGER,
+                gender TEXT,
+                class_w_wtt INTEGER,
+                class_w_pnr INTEGER,
+                class_w_knr INTEGER,
+                class_o_wtt INTEGER,
+                class_o_pnr INTEGER,
+                class_o_knr INTEGER,
+                FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+            )''')
+            self._insert_people(self._pers_data_csv)
+            self._con.commit()
 
         self.people = self._unsample(self._count_rows('People'))
         print '{0:<20}{1:>10,.0f}'.format('-- People:', self.people)
 
         # -- Tours table
-        print 'Loading tours into database...'
-        self._con.execute('''CREATE TABLE Tours (
-            tour_id TEXT PRIMARY KEY,
-            hh_id INTEGER,
-            participants TEXT,
-            pers_num TEXT,
-            is_joint BOOLEAN,
-            category TEXT,
-            purpose TEXT,
-            sz_o INTEGER,
-            sz_d INTEGER,
-            tod_d INTEGER,
-            tod_a INTEGER,
-            mode INTEGER,
-            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
-        )''')
-        self._con.execute('''CREATE TABLE PersonTours (
-            ptour_id TEXT PRIMARY KEY,
-            tour_id TEXT,
-            hh_id INTEGER,
-            pers_id TEXT,
-            mode INTEGER,
-            FOREIGN KEY (pers_id) REFERENCES People(pers_id),
-            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
-            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
-        )''')
-        self._insert_tours(self._tours_indiv_csv, is_joint=False)
-        self._insert_tours(self._tours_joint_csv, is_joint=True)
-        self._con.commit()
+        print 'Processing tours...'
+        if build_db:
+            self._con.execute('''CREATE TABLE Tours (
+                tour_id TEXT PRIMARY KEY,
+                hh_id INTEGER,
+                participants TEXT,
+                pers_num TEXT,
+                is_joint BOOLEAN,
+                category TEXT,
+                purpose TEXT,
+                sz_o INTEGER,
+                sz_d INTEGER,
+                tod_d INTEGER,
+                tod_a INTEGER,
+                mode INTEGER,
+                FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+            )''')
+            self._con.execute('''CREATE TABLE PersonTours (
+                ptour_id TEXT PRIMARY KEY,
+                tour_id TEXT,
+                hh_id INTEGER,
+                pers_id TEXT,
+                mode INTEGER,
+                FOREIGN KEY (pers_id) REFERENCES People(pers_id),
+                FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+                FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+            )''')
+            self._insert_tours(self._tours_indiv_csv, is_joint=False)
+            self._insert_tours(self._tours_joint_csv, is_joint=True)
+            self._con.commit()
 
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
@@ -145,47 +151,48 @@ class ABM(object):
         print '{0:<20}{1:>10,.0f}'.format('-- Person-Tours:', self.person_tours)
 
         # -- Trips table
-        print 'Loading trips into database...'
-        self._con.execute('''CREATE TABLE Trips (
-            trip_id TEXT PRIMARY KEY,
-            tour_id TEXT,
-            hh_id INTEGER,
-            pers_num TEXT,
-            is_joint BOOLEAN,
-            inbound BOOLEAN,
-            purpose_o TEXT,
-            purpose_d TEXT,
-            sz_o INTEGER,
-            sz_d INTEGER,
-            zn_o INTEGER,
-            zn_d INTEGER,
-            tap_o INTEGER,
-            tap_d INTEGER,
-            tod INTEGER,
-            mode INTEGER,
-            drive_time REAL,
-            drive_distance REAL,
-            drive_speed REAL,
-            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
-            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
-        )''')
-        self._con.execute('''CREATE TABLE PersonTrips (
-            ptrip_id TEXT PRIMARY KEY,
-            ptour_id TEXT,
-            trip_id TEXT,
-            tour_id TEXT,
-            hh_id INTEGER,
-            pers_id TEXT,
-            mode INTEGER,
-            FOREIGN KEY (pers_id) REFERENCES People(pers_id),
-            FOREIGN KEY (trip_id) REFERENCES Trips(trip_id),
-            FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
-            FOREIGN KEY (ptour_id) REFERENCES PersonTours(ptour_id),
-            FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
-        )''')
-        self._insert_trips(self._trips_indiv_csv, is_joint=False)
-        self._insert_trips(self._trips_joint_csv, is_joint=True)
-        self._con.commit()
+        print 'Processing trips...'
+        if build_db:
+            self._con.execute('''CREATE TABLE Trips (
+                trip_id TEXT PRIMARY KEY,
+                tour_id TEXT,
+                hh_id INTEGER,
+                pers_num TEXT,
+                is_joint BOOLEAN,
+                inbound BOOLEAN,
+                purpose_o TEXT,
+                purpose_d TEXT,
+                sz_o INTEGER,
+                sz_d INTEGER,
+                zn_o INTEGER,
+                zn_d INTEGER,
+                tap_o INTEGER,
+                tap_d INTEGER,
+                tod INTEGER,
+                mode INTEGER,
+                drive_time REAL,
+                drive_distance REAL,
+                drive_speed REAL,
+                FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+                FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+            )''')
+            self._con.execute('''CREATE TABLE PersonTrips (
+                ptrip_id TEXT PRIMARY KEY,
+                ptour_id TEXT,
+                trip_id TEXT,
+                tour_id TEXT,
+                hh_id INTEGER,
+                pers_id TEXT,
+                mode INTEGER,
+                FOREIGN KEY (pers_id) REFERENCES People(pers_id),
+                FOREIGN KEY (trip_id) REFERENCES Trips(trip_id),
+                FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
+                FOREIGN KEY (ptour_id) REFERENCES PersonTours(ptour_id),
+                FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
+            )''')
+            self._insert_trips(self._trips_indiv_csv, is_joint=False)
+            self._insert_trips(self._trips_joint_csv, is_joint=True)
+            self._con.commit()
 
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
@@ -196,25 +203,27 @@ class ABM(object):
         print '{0:<20}{1:>10,.0f}'.format('-- Trips (total):', self.trips)
         print '{0:<20}{1:>10,.0f}'.format('-- Person-Trips:', self.person_trips)
 
-        del self._matrices
+        if build_db:
+            del self._matrices
 
         # -- TransitSegs table
-        print 'Loading transit segments into database...'
-        self._con.execute('''CREATE TABLE TransitSegs (
-            tseg_id TEXT PRIMARY KEY,
-            tline_id TEXT,
-            tseg_num INTEGER,
-            inode INTEGER,
-            jnode INTEGER,
-            tod INTEGER,
-            transit_mode TEXT,
-            boardings REAL,
-            passengers REAL,
-            pass_hrs REAL,
-            pass_mi REAL
-        )''')
-        self._insert_tsegs()
-        self._con.commit()
+        print 'Processing transit segments...'
+        if build_db:
+            self._con.execute('''CREATE TABLE TransitSegs (
+                tseg_id TEXT PRIMARY KEY,
+                tline_id TEXT,
+                tseg_num INTEGER,
+                inode INTEGER,
+                jnode INTEGER,
+                tod INTEGER,
+                transit_mode TEXT,
+                boardings REAL,
+                passengers REAL,
+                pass_hrs REAL,
+                pass_mi REAL
+            )''')
+            self._insert_tsegs()
+            self._con.commit()
 
         self.transit_segments = self._count_rows('TransitSegs')
         print '{0:<20}{1:>10,.0f}'.format('-- Transit Segments:', self.transit_segments)
@@ -837,10 +846,10 @@ class Comparison(object):
 
 
 ### SCRIPT MODE ###
-def main():
+def main(build_db=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(r'Y:\nmp\basic_template_20140521', 0.05)
+    base = ABM(r'Y:\nmp\basic_template_20140521', 0.05, build_db)
     base.print_mode_share()
     base.print_transit_stats()
     base.print_ptrips_by_class()
@@ -848,7 +857,7 @@ def main():
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(r'Y:\nmp\basic_template_20140527', 0.05)
+    test = ABM(r'Y:\nmp\basic_template_20140527', 0.05, build_db)
     test.print_mode_share()
     test.print_transit_stats()
     test.print_ptrips_by_class()
