@@ -682,7 +682,7 @@ class Comparison(object):
         grouped_test_ptrips_by_class = self.test._get_ptrips_by_class(group_field)
 
         with open(csv_path, 'wb') as w:
-            w.write('{0}_{1},persontrips_base,mean_uclass_base,persontrips_test,mean_uclass_test,persontrips_diff,mean_uclass_diff\n'.format(geography, trip_end[0]))
+            w.write('{0}_{1},ptrips_base,mean_uclass_base,ptrips_test,mean_uclass_test,ptrips_diff,mean_uclass_diff\n'.format(geography, trip_end[0]))
             for geog_id in xrange(1, max_id[geography]+1):
                 where_filter = '{0} = {1}'.format(group_field, geog_id)
 
@@ -712,7 +712,7 @@ class Comparison(object):
                 row_template = '{0},{1:.0f},{2:.4f},{3:.0f},{4:.4f},{5:.0f},{6:.4f}\n'
                 w.write(row_template.format(geog_id, base_ptrips_total, mean_uclass_base, test_ptrips_total, mean_uclass_test, ptrips_total_diff, mean_uclass_diff))
 
-        print 'Person-trips and mean user class by {0} {1} have been exported to {2}.'.format(trip_end, geography, csv_path)
+        print 'Person-trips and mean user class by {0} {1} have been exported to {2}.\n'.format(trip_end, geography, csv_path)
         return None
 
     def open_dbs(self):
