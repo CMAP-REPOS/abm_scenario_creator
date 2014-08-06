@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 '''
-    abm.py
+    results.py
     Author: npeterson
-    Revised: 7/30/14
+    Revised: 8/6/14
     ---------------------------------------------------------------------------
-    A module for reading ABM output files and matrix data into an SQL database
+    A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
 
 '''
