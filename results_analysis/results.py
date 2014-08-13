@@ -292,7 +292,7 @@ class ABM(object):
 
     @classmethod
     def _get_matrix_nums(cls, mode):
-        ''' Return the matrix numbers for congested time and distance
+        ''' Return the matrix numbers for congested time (t) and distance (d)
             corresponding to driving mode (1-6). See ABM User Guide p.36. '''
         if mode == 1:  # SOV, no toll
             t, d = 175, 177
@@ -343,11 +343,14 @@ class ABM(object):
     def _get_ptrips_by_class(self, stratify_by_field=None):
         ''' Return count of transit person-trips, split by user class (1-3). '''
         ptrips_dict_template = {1: 0.0, 2: 0.0, 3: 0.0}
+
+        # Initialize query components
         sql_select = 'SELECT PersonTrips.mode, Tours.category, People.class_w_wtt, People.class_w_pnr, People.class_w_knr, People.class_o_wtt, People.class_o_pnr, People.class_o_knr'
         sql_from = 'FROM PersonTrips LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id LEFT JOIN People ON PersonTrips.pers_id=People.pers_id'
         sql_where = 'WHERE PersonTrips.mode IN (9, 10, 11, 12)'
 
         if stratify_by_field:
+            # Update query to accommodate stratification field
             sql_select += ', {0}'.format(stratify_by_field)
             if stratify_by_field.lower().startswith('trips.'):
                 sql_from += ' LEFT JOIN Trips ON PersonTrips.trip_id=Trips.trip_id'
@@ -356,14 +359,17 @@ class ABM(object):
             elif stratify_by_field.lower().startswith('persontours.'):
                 sql_from += ' LEFT JOIN PersonTours ON PersonTrips.ptour_id=PersonTours.ptour_id'
 
+            # Identify unique stratification values to group output by
             table, field = stratify_by_field.split('.')
             sql_groups = 'SELECT DISTINCT {0} FROM {1}'.format(field, table)
             groups = [r[0] for r in self.query(sql_groups)]
         else:
             groups = [None]
 
+        # Build final query
         sql = ' '.join((sql_select, sql_from, sql_where))
 
+        # Initialize user class dict for each group
         ptrips_by_class = {}
         for group in groups:
             ptrips_by_class[group] = ptrips_dict_template.copy()
@@ -372,6 +378,7 @@ class ABM(object):
             mode = r[0]
             category = r[1]
 
+            # Get purpose-appropriate user classes
             if category == 'mandatory':  # Use "work" user classes
                 wtt = r[2]
                 pnr = r[3]
@@ -381,16 +388,20 @@ class ABM(object):
                 pnr = r[6]
                 knr = r[7]
 
+            # Pick user class by mode
+            # (drive-to-transit trips must somehow choose between PNR & KNR user class)
             if mode in (9, 10):
                 uclass = wtt
             else:
-                uclass = max(pnr, knr)
+                uclass = max(pnr, knr)  # Assume drive-to-transit users are as picky as possible
 
+            # Get group ID
             if stratify_by_field:
                 group = r[8]
             else:
                 group = None
 
+            # Add trip to appropriate group-user class combo
             ptrips_by_class[group][uclass] += self._unsample(1.0)
 
         if stratify_by_field:
