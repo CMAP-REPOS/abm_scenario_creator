@@ -488,7 +488,7 @@ class ABM(object):
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV. '''
         with open(trips_csv, 'rb') as csvfile:
-            people_uclasses = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6]) for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
+            people_uclasses = {r[0]: list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
             tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
             r = csv.DictReader(csvfile)
             for d in r:
