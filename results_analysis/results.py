@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 8/6/14
+    Revised: 8/20/14
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -19,6 +19,49 @@ class ABM(object):
     ''' A class for loading ABM model run output data into a SQLite database.
         Initialized with path (parent directory of 'model') and model run
         sample rate (default 0.05). '''
+
+    # --- Properties ---
+    modes = {
+        1: 'Drive alone free',
+        2: 'Drive alone pay',
+        3: 'Shared ride 2 free',
+        4: 'Shared ride 2 pay',
+        5: 'Shared ride 3+ free',
+        6: 'Shared ride 3+ pay',
+        7: 'Walk',
+        8: 'Bike',
+        9: 'Walk to local transit',
+        10: 'Walk to premium transit',
+        11: 'Drive to local transit',
+        12: 'Drive to premium transit',
+        13: 'Taxi',
+        14: 'School bus'
+    }
+
+    tod_by_index = [
+        None,                  # No CT-RAMP period 0
+        1,1,1,                 # CT-RAMP periods 1-3: [3am, 6am)
+        2,2,                   # CT-RAMP periods 4-5: [6am, 7am)
+        3,3,3,3,               # CT-RAMP periods 6-9: [7am, 9am)
+        4,4,                   # CT-RAMP periods 10-11: [9am, 10am)
+        5,5,5,5,5,5,5,5,       # CT-RAMP periods 12-19: [10am, 2pm)
+        6,6,6,6,               # CT-RAMP periods 20-23: [2pm, 4pm)
+        7,7,7,7,               # CT-RAMP periods 24-27: [4pm, 6pm)
+        8,8,8,8,               # CT-RAMP periods 28-31: [6pm, 8pm)
+        1,1,1,1,1,1,1,1,1,1,1  # CT-RAMP periods 32-42: [8pm, 3am)
+    ]
+
+    transit_modes = {
+        'M': 'Metra Rail',
+        'C': 'CTA Rail',
+        'B': 'CTA Bus (Regular)',
+        'E': 'CTA Bus (Express)',
+        'L': 'Pace Bus (Local)',
+        'P': 'Pace Bus (Regular)',
+        'Q': 'Pace Bus (Express)'
+    }
+
+    # --- Init ---
     def __init__(self, abm_dir, sample_rate=0.05, build_db=True):
         self.dir = abm_dir
         self.sample_rate = sample_rate
@@ -237,48 +280,8 @@ class ABM(object):
     def __str__(self):
         return '[ABM: {0} ({1:.0%} sample)]'.format(self.name, self.sample_rate)
 
-    # Properties
-    modes = {
-        1: 'Drive alone free',
-        2: 'Drive alone pay',
-        3: 'Shared ride 2 free',
-        4: 'Shared ride 2 pay',
-        5: 'Shared ride 3+ free',
-        6: 'Shared ride 3+ pay',
-        7: 'Walk',
-        8: 'Bike',
-        9: 'Walk to local transit',
-        10: 'Walk to premium transit',
-        11: 'Drive to local transit',
-        12: 'Drive to premium transit',
-        13: 'Taxi',
-        14: 'School bus'
-    }
 
-    tod_by_index = [
-        None,                  # No CT-RAMP period 0
-        1,1,1,                 # CT-RAMP periods 1-3: [3am, 6am)
-        2,2,                   # CT-RAMP periods 4-5: [6am, 7am)
-        3,3,3,3,               # CT-RAMP periods 6-9: [7am, 9am)
-        4,4,                   # CT-RAMP periods 10-11: [9am, 10am)
-        5,5,5,5,5,5,5,5,       # CT-RAMP periods 12-19: [10am, 2pm)
-        6,6,6,6,               # CT-RAMP periods 20-23: [2pm, 4pm)
-        7,7,7,7,               # CT-RAMP periods 24-27: [4pm, 6pm)
-        8,8,8,8,               # CT-RAMP periods 28-31: [6pm, 8pm)
-        1,1,1,1,1,1,1,1,1,1,1  # CT-RAMP periods 32-42: [8pm, 3am)
-    ]
-
-    transit_modes = {
-        'M': 'Metra Rail',
-        'C': 'CTA Rail',
-        'B': 'CTA Bus (Regular)',
-        'E': 'CTA Bus (Express)',
-        'L': 'Pace Bus (Local)',
-        'P': 'Pace Bus (Regular)',
-        'Q': 'Pace Bus (Express)'
-    }
-
-    # Class methods
+    # --- Class methods ---
     @classmethod
     def _convert_time_period(cls, in_period, ctramp_to_emme=True):
         ''' Convert CT-RAMP time period to Emme time-of-day, or vice versa.
@@ -315,7 +318,8 @@ class ABM(object):
         ''' Return description of a mode code. '''
         return cls.modes[mode_num]
 
-    # Instance methods
+
+    # --- Instance methods ---
     def _clean_str(self, string):
         ''' Clean a string for database entry. '''
         return string.lower().replace('-', '').replace(' ', '')
@@ -664,6 +668,8 @@ class ABM(object):
 
 class Comparison(object):
     ''' A class for comparing two ABM objects. '''
+
+    # --- Init ---
     def __init__(self, base_abm, test_abm):
         self.base = base_abm
         self.test = test_abm
@@ -672,7 +678,8 @@ class Comparison(object):
     def __str__(self):
         return '[Comparison: BASE {0}; TEST {1}]'.format(self.base, self.test)
 
-    # Instance methods
+
+    # --- Instance methods ---
     def close_dbs(self):
         ''' Close base & test ABM database connections. '''
         self.base.close_db()
