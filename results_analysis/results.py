@@ -227,6 +227,7 @@ class ABM(object):
                 hh_id INTEGER,
                 pers_id TEXT,
                 mode INTEGER,
+                uclass INTEGER,
                 FOREIGN KEY (pers_id) REFERENCES People(pers_id),
                 FOREIGN KEY (trip_id) REFERENCES Trips(trip_id),
                 FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
@@ -349,8 +350,8 @@ class ABM(object):
         ptrips_dict_template = {1: 0.0, 2: 0.0, 3: 0.0}
 
         # Initialize query components
-        sql_select = 'SELECT PersonTrips.mode, Tours.category, People.class_w_wtt, People.class_w_pnr, People.class_w_knr, People.class_o_wtt, People.class_o_pnr, People.class_o_knr'
-        sql_from = 'FROM PersonTrips LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id LEFT JOIN People ON PersonTrips.pers_id=People.pers_id'
+        sql_select = 'SELECT PersonTrips.uclass'
+        sql_from = 'FROM PersonTrips'
         sql_where = 'WHERE PersonTrips.mode IN (9, 10, 11, 12)'
 
         if stratify_by_field:
@@ -358,8 +359,12 @@ class ABM(object):
             sql_select += ', {0}'.format(stratify_by_field)
             if stratify_by_field.lower().startswith('trips.'):
                 sql_from += ' LEFT JOIN Trips ON PersonTrips.trip_id=Trips.trip_id'
+            elif stratify_by_field.lower().startswith('tours.'):
+                sql_from += ' LEFT JOIN Tours ON PersonTrips.tour_id=Tours.tour_id'
             elif stratify_by_field.lower().startswith('households.'):
                 sql_from += ' LEFT JOIN Households ON PersonTrips.hh_id=Households.hh_id'
+            elif stratify_by_field.lower().startswith('people.'):
+                sql_from += ' LEFT JOIN People ON PersonTrips.pers_id=People.pers_id'
             elif stratify_by_field.lower().startswith('persontours.'):
                 sql_from += ' LEFT JOIN PersonTours ON PersonTrips.ptour_id=PersonTours.ptour_id'
 
@@ -379,29 +384,11 @@ class ABM(object):
             ptrips_by_class[group] = ptrips_dict_template.copy()
 
         for r in self.query(sql):
-            mode = r[0]
-            category = r[1]
-
-            # Get purpose-appropriate user classes
-            if category == 'mandatory':  # Use "work" user classes
-                wtt = r[2]
-                pnr = r[3]
-                knr = r[4]
-            else:  # Use "non-work" user classes
-                wtt = r[5]
-                pnr = r[6]
-                knr = r[7]
-
-            # Pick user class by mode
-            # (drive-to-transit trips must somehow choose between PNR & KNR user class)
-            if mode in (9, 10):
-                uclass = wtt
-            else:
-                uclass = max(pnr, knr)  # Assume drive-to-transit users are as picky as possible
+            uclass = r[0]
 
             # Get group ID
             if stratify_by_field:
-                group = r[8]
+                group = r[1]
             else:
                 group = None
 
@@ -501,6 +488,8 @@ class ABM(object):
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV. '''
         with open(trips_csv, 'rb') as csvfile:
+            people_uclasses = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6]) for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
+            tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
             r = csv.DictReader(csvfile)
             for d in r:
                 hh_id = int(d['hh_id'])
@@ -546,14 +535,31 @@ class ABM(object):
                 )
                 insert_sql = 'INSERT INTO Trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
-
                 tour_participants = [r[0] for r in self.query("SELECT participants FROM Tours WHERE tour_id = '{0}'".format(tour_id))][0]
                 for participant in tour_participants.strip().split():
                     pers_id = '{0}-{1}'.format(hh_id, participant)
                     ptour_id = '{0}-{1}'.format(tour_id, participant)
                     ptrip_id = '{0}-{1}'.format(trip_id, participant)
+
+                    # Assign each person-trip the appropriate user-class
+                    ptrip_category = tour_categories[tour_id]
+                    if ptrip_category == 'mandatory':  # Use "work" user classes
+                        wtt = people_uclasses[pers_id][0]
+                        pnr = people_uclasses[pers_id][1]
+                        knr = people_uclasses[pers_id][2]
+                    else:  # Use "non-work" user classes
+                        wtt = people_uclasses[pers_id][3]
+                        pnr = people_uclasses[pers_id][4]
+                        knr = people_uclasses[pers_id][5]
+                    if mode in (9, 10):
+                        uclass = wtt
+                    elif mode in (11, 12):
+                        uclass = max(pnr, knr)  # Assume drive-to-transit users are as picky as possible
+                    else:
+                        uclass = None
+
                     db_row = (
-                        ptrip_id, ptour_id, trip_id, tour_id, hh_id, pers_id, mode
+                        ptrip_id, ptour_id, trip_id, tour_id, hh_id, pers_id, mode, uclass
                     )
                     insert_sql = 'INSERT INTO PersonTrips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                     self._con.execute(insert_sql, db_row)
