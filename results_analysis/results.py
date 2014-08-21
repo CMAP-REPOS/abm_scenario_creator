@@ -830,31 +830,55 @@ class Comparison(object):
             diff_auto = trip_diff_dict['auto']
             diff_dtt = trip_diff_dict['dtt']
             diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
-            diff_all = diff_auto + diff_dtt + diff_wtt_oth
+            #diff_all = diff_auto + diff_dtt + diff_wtt_oth
 
             person_auto_trips_diverted[pers_id] = 0
             person_auto_trips_eliminated[pers_id] = 0
 
             # Account for all lost auto trips
-            while diff_auto < 0:
+            if diff_auto < 0:
+                while diff_auto < 0:
 
-                # First assume trips diverted
-                if diff_dtt > 0:
-                    person_auto_trips_diverted[pers_id] += 1
-                    diff_dtt -= 1
-                    diff_auto += 1
+                    # First assume trips diverted
+                    if diff_dtt > 0:
+                        person_auto_trips_diverted[pers_id] += 1
+                        diff_dtt -= 1
+                        diff_auto += 1
 
-                # Then assume trips eliminated
-                elif diff_wtt_oth > 0:
-                    person_auto_trips_eliminated[pers_id] += 1
-                    diff_wtt_oth -= 1
-                    diff_auto += 1
+                    # Then assume trips eliminated
+                    elif diff_wtt_oth > 0:
+                        person_auto_trips_eliminated[pers_id] += 1
+                        diff_wtt_oth -= 1
+                        diff_auto += 1
 
-                # Finally, add the remainder (auto trips completely eliminated,
-                # but not replaced with transit) to trips eliminated
-                else:
-                    person_auto_trips_eliminated[pers_id] += abs(diff_auto)
-                    diff_auto = 0
+                    # Finally, add the remainder (auto trips completely eliminated,
+                    # but not replaced with transit) to trips eliminated
+                    else:
+                        person_auto_trips_eliminated[pers_id] += abs(diff_auto)
+                        diff_auto = 0
+
+            # Account for all gained auto trips
+            elif diff_auto > 0:
+                while diff_auto > 0:
+
+                    # First assume trips lengthened
+                    if diff_dtt < 0:
+                        person_auto_trips_diverted[pers_id] -= 1
+                        diff_dtt += 1
+                        diff_auto -= 1
+
+                    # Then assume trips added
+                    elif diff_wtt_oth < 0:
+                        person_auto_trips_eliminated[pers_id] -= 1
+                        diff_wtt_oth += 1
+                        diff_auto -= 1
+
+                    # Finally, subtract the remainder (totally new auto trips)
+                    # from trips eliminated
+                    else:
+                        person_auto_trips_eliminated[pers_id] -= abs(diff_auto)
+                        diff_auto = 0
+
 
             # Account for auto portion of any new or eliminated drive-to-transit trips
             if diff_dtt != 0:
