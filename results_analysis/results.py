@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 8/20/14
+    Revised: 8/21/14
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -10,6 +10,7 @@
 '''
 import os
 import sys
+import copy
 import csv
 import sqlite3
 from inro.emme.database import emmebank as _eb
@@ -275,6 +276,8 @@ class ABM(object):
         self.transit_stats = self._get_transit_stats()
         self.mode_share = self._get_mode_share()
         self.ptrips_by_class = self._get_ptrips_by_class()
+
+        self.close_db()
 
         return None  ### End of ABM.__init__() ###
 
@@ -631,8 +634,8 @@ class ABM(object):
         if grouped:
             mode_share_grouped = {
                 'Auto (Excl. Taxi)': sum(self.mode_share[m] for m in xrange(1, 7)),
-                'Drive-to-Transit': sum(self.mode_share[m] for m in xrange(11, 13)),
-                'Walk-to-Transit': sum(self.mode_share[m] for m in xrange(9, 11)),
+                'Drive-to-Transit': sum(self.mode_share[m] for m in (11, 12)),
+                'Walk-to-Transit': sum(self.mode_share[m] for m in (9, 10)),
                 'Walk/Bike/Taxi/School Bus': sum(self.mode_share[m] for m in (7, 8, 13, 14))
             }
             print 'MODE SHARE (GROUPED)'
@@ -706,6 +709,9 @@ class Comparison(object):
     def __init__(self, base_abm, test_abm):
         self.base = base_abm
         self.test = test_abm
+        self.open_dbs()
+        self._person_mode_diffs = self._get_person_mode_diffs()
+        self.close_dbs()
         return None
 
     def __str__(self):
@@ -775,10 +781,94 @@ class Comparison(object):
         print 'Person-trips and mean user class by {0} {1} have been exported to {2}.\n'.format(trip_end, geography, csv_path)
         return None
 
+    def _get_person_mode_diffs(self):
+        ''' Calculate the change in trips, by mode, for each person. '''
+        sql_template = 'SELECT pers_id, COUNT(*) FROM PersonTrips WHERE mode in ({0}) GROUP BY pers_id'
+        mode_groups = {
+            'auto': '1, 2, 3, 4, 5, 6',
+            'dtt': '11, 12',
+            'wtt': '9, 10',
+            'other': '7, 8, 13, 14'
+        }
+
+        # Find all unique people from both scenarios
+        unique_people_query = 'SELECT DISTINCT pers_id FROM PersonTrips'
+        unique_people_base = set(r[0] for r in self.base.query(unique_people_query))
+        unique_people_test = set(r[0] for r in self.test.query(unique_people_query))
+        unique_people = unique_people_base | unique_people_test  # Union of the two
+
+        # Create base/test/diff ptrips dicts, initialized with 0's
+        ptrips_dict_template = {group_key: 0 for group_key in mode_groups.keys()}
+        ptrips_dict_base = {pers_id: ptrips_dict_template.copy() for pers_id in unique_people}
+        ptrips_dict_test = copy.deepcopy(ptrips_dict_base)
+        ptrips_dict_diff = copy.deepcopy(ptrips_dict_base)
+
+        # Populate dicts
+        for group_key, mode_list in mode_groups.iteritems():
+            mode_sql = sql_template.format(mode_list)
+            for pers_id, count in self.base.query(mode_sql):
+                ptrips_dict_base[pers_id][group_key] = self.base._unsample(count)
+            for pers_id, count in self.test.query(mode_sql):
+                ptrips_dict_test[pers_id][group_key] = self.test._unsample(count)
+            for pers_id in ptrips_dict_diff.keys():
+                ptrips_dict_diff[pers_id][group_key] = ptrips_dict_test[pers_id][group_key] - ptrips_dict_base[pers_id][group_key]
+
+        return ptrips_dict_diff
+
     def open_dbs(self):
         ''' Open base & test ABM database connections. '''
         self.base.open_db()
         self.test.open_db()
+        return None
+
+    def print_auto_trips_affected(self):
+        ''' Print the estimated number of auto trips diverted or eliminated. '''
+        person_auto_trips_diverted = {}
+        person_auto_trips_eliminated = {}
+
+        for pers_id, trip_diff_dict in self._person_mode_diffs.iteritems():
+            diff_auto = trip_diff_dict['auto']
+            diff_dtt = trip_diff_dict['dtt']
+            diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
+            diff_all = diff_auto + diff_dtt + diff_wtt_oth
+
+            person_auto_trips_diverted[pers_id] = 0
+            person_auto_trips_eliminated[pers_id] = 0
+
+            # Account for all lost auto trips
+            while diff_auto < 0:
+
+                # First assume trips diverted
+                if diff_dtt > 0:
+                    person_auto_trips_diverted[pers_id] += 1
+                    diff_dtt -= 1
+                    diff_auto += 1
+
+                # Then assume trips eliminated
+                elif diff_wtt_oth > 0:
+                    person_auto_trips_eliminated[pers_id] += 1
+                    diff_wtt_oth -= 1
+                    diff_auto += 1
+
+                # Finally, add the remainder (auto trips completely eliminated,
+                # but not replaced with transit) to trips eliminated
+                else:
+                    person_auto_trips_eliminated[pers_id] += abs(diff_auto)
+                    diff_auto = 0
+
+            # Account for auto portion of any new or eliminated drive-to-transit trips
+            if diff_dtt != 0:
+                person_auto_trips_eliminated[pers_id] -= diff_dtt
+                diff_dtt = 0
+
+        auto_trips_diverted = sum(person_auto_trips_diverted.itervalues())
+        auto_trips_eliminated = sum(person_auto_trips_eliminated.itervalues())
+
+        print ' '
+        print 'AUTO TRIPS DIVERTED: {0:>10,.0f}'.format(auto_trips_diverted)
+        print 'AUTO TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_trips_eliminated)
+        print ' '
+
         return None
 
     def print_mode_share_change(self, grouped=True):
@@ -791,8 +881,8 @@ class Comparison(object):
         if grouped:
             mode_share_grouped_diff = {
                 'Auto (Excl. Taxi)': sum(mode_share_diff[m] for m in xrange(1, 7)),
-                'Drive-to-Transit': sum(mode_share_diff[m] for m in xrange(11, 13)),
-                'Walk-to-Transit': sum(mode_share_diff[m] for m in xrange(9, 11)),
+                'Drive-to-Transit': sum(mode_share_diff[m] for m in (11, 12)),
+                'Walk-to-Transit': sum(mode_share_diff[m] for m in (9, 10)),
                 'Walk/Bike/Taxi/School Bus': sum(mode_share_diff[m] for m in (7, 8, 13, 14))
             }
             print 'MODE SHARE CHANGE (GROUPED)'
@@ -901,17 +991,21 @@ def main(build_db=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
     base = ABM(r'Y:\nmp\basic_template_20140521', 0.05, build_db)
+    base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
     base.print_ptrips_by_class()
+    base.close_db()
     print base
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
     test = ABM(r'Y:\nmp\basic_template_20140527', 0.05, build_db)
+    test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
     test.print_ptrips_by_class()
+    test.close_db()
     print test
     print ' '
 
@@ -921,6 +1015,8 @@ def main(build_db=True):
     print ' '
 
     print '\n{0:*^50}'.format(' R E S U L T S ')
+    comp.open_dbs()
+
     comp.print_mode_share_change()
     comp.print_transit_stats_change()
     comp.print_ptrips_by_class_change()
@@ -933,6 +1029,7 @@ def main(build_db=True):
     comp.print_new_dtt()
     comp.print_new_wtt()
     comp.print_new_other()
+    comp.print_auto_trips_affected()
 
     comp.close_dbs()
 
