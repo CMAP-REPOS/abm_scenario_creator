@@ -421,12 +421,16 @@ class ABM(object):
         with open(hh_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
+                # Get values
                 hh_id = int(d['hh_id'])
                 sz = int(d['maz'])
                 size = int(d['size'])
+
+                # Insert into table
                 db_row = (hh_id, sz, size)
                 insert_sql = 'INSERT INTO Households VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+
         return None
 
     def _insert_people(self, pers_csv):
@@ -434,6 +438,7 @@ class ABM(object):
         with open(pers_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
+                # Get values
                 hh_id = int(d['hh_id'])
                 pers_num = int(d['person_num'])
                 pers_id = '{0}-{1}'.format(hh_id, pers_num)  # NOTE: NOT the 'person_id' value from CSV
@@ -445,9 +450,12 @@ class ABM(object):
                 uc_o_w = int(d['user_class_non_work_walk'])
                 uc_o_p = int(d['user_class_non_work_pnr'])
                 uc_o_k = int(d['user_class_non_work_knr'])
+
+                # Insert into table
                 db_row = (pers_id, hh_id, pers_num, age, gender, uc_w_w, uc_w_p, uc_w_k, uc_o_w, uc_o_p, uc_o_k)
                 insert_sql = 'INSERT INTO People VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+
         return None
 
     def _insert_tours(self, tours_csv, is_joint):
@@ -455,6 +463,7 @@ class ABM(object):
         with open(tours_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
             for d in r:
+                # Get values
                 hh_id = int(d['hh_id'])
                 participants = str(d['tour_participants']) if is_joint else str(d['person_num'])
                 pers_num = 'J' if is_joint else participants
@@ -467,6 +476,8 @@ class ABM(object):
                 tod_a = self._convert_time_period(int(d['arrive_period']))
                 mode = int(d['tour_mode'])
                 tour_id = '{0}-{1}-{2}-{3}'.format(hh_id, pers_num, tour_num, purpose)
+
+                # Insert into table
                 db_row = (
                     tour_id, hh_id, participants, pers_num, is_joint, category,
                     purpose, sz_o, sz_d, tod_d, tod_a, mode
@@ -474,9 +485,11 @@ class ABM(object):
                 insert_sql = 'INSERT INTO Tours VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
 
+                # Split tours into person-tours
                 for participant in participants.strip().split():
                     pers_id = '{0}-{1}'.format(hh_id, participant)
                     ptour_id = '{0}-{1}'.format(tour_id, participant)
+                    # Insert into table
                     db_row = (
                         ptour_id, tour_id, hh_id, pers_id, mode
                     )
@@ -486,12 +499,15 @@ class ABM(object):
         return None
 
     def _insert_trips(self, trips_csv, is_joint):
-        ''' Populate the Trips and PersonTrips tables from a CSV. '''
+        ''' Populate the Trips and PersonTrips tables from a CSV and the People & Tours tables. '''
         with open(trips_csv, 'rb') as csvfile:
+            # Get people user-classes and tour categories for setting person-trip user-class
             people_uclasses = {r[0]: list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
             tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
+
             r = csv.DictReader(csvfile)
             for d in r:
+                # Get values
                 hh_id = int(d['hh_id'])
                 pers_num = 'J' if is_joint else str(d['person_num'])
                 tour_num = int(d['tour_id'])
@@ -528,6 +544,7 @@ class ABM(object):
                     distance = 0
                 speed = distance / (time / 60) if (time and distance) else 0
 
+                # Insert into table
                 db_row = (
                     trip_id, tour_id, hh_id, pers_num, is_joint, inbound,
                     purpose_o, purpose_d, sz_o, sz_d, zn_o, zn_d, tap_o, tap_d,
@@ -535,13 +552,17 @@ class ABM(object):
                 )
                 insert_sql = 'INSERT INTO Trips VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                 self._con.execute(insert_sql, db_row)
+
+                # Split trips into person-trips
                 tour_participants = [r[0] for r in self.query("SELECT participants FROM Tours WHERE tour_id = '{0}'".format(tour_id))][0]
                 for participant in tour_participants.strip().split():
+                    # Get values
                     pers_id = '{0}-{1}'.format(hh_id, participant)
                     ptour_id = '{0}-{1}'.format(tour_id, participant)
                     ptrip_id = '{0}-{1}'.format(trip_id, participant)
 
-                    # Assign each person-trip the appropriate user-class
+                    # Assign each person-trip the appropriate user-class,
+                    # based on trip mode and category (mandatory or not).
                     ptrip_category = tour_categories[tour_id]
                     if ptrip_category == 'mandatory':  # Use "work" user classes
                         wtt = people_uclasses[pers_id][0]
@@ -551,6 +572,7 @@ class ABM(object):
                         wtt = people_uclasses[pers_id][3]
                         pnr = people_uclasses[pers_id][4]
                         knr = people_uclasses[pers_id][5]
+
                     if mode in (9, 10):
                         uclass = wtt
                     elif mode in (11, 12):
@@ -558,6 +580,7 @@ class ABM(object):
                     else:
                         uclass = None
 
+                    # Insert into table
                     db_row = (
                         ptrip_id, ptour_id, trip_id, tour_id, hh_id, pers_id, mode, uclass
                     )
@@ -574,6 +597,7 @@ class ABM(object):
             scenario = self._emmebank.scenario(scenario_id)
             network = scenario.get_network()
             for tseg in network.transit_segments():
+                # Get values
                 inode = tseg.i_node
                 jnode = tseg.j_node
                 if inode and jnode:
@@ -583,12 +607,15 @@ class ABM(object):
                     passengers = tseg.transit_volume
                     pass_hrs = passengers * tseg.transit_time / 60.0
                     pass_mi = passengers * link.length
+
+                    # Insert into table (if valid link)
                     db_row = (
                         tseg.id, tline.id, tseg.number, inode.number, jnode.number,
                         tod, tline.mode.id, boardings, passengers, pass_hrs, pass_mi
                     )
                     insert_sql = 'INSERT INTO TransitSegs VALUES ({0})'.format(','.join(['?'] * len(db_row)))
                     self._con.execute(insert_sql, db_row)
+
         self._emmebank.dispose()  # Close Emmebank, remove lock
         return None
 
