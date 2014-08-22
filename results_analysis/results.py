@@ -933,14 +933,15 @@ class Comparison(object):
         hh_auto_trips_diverted = {}
         hh_auto_trips_eliminated = {}
 
-        # Estimate trips diverted/eliminated for each household individually
-        for hh_id, trip_diff_dict in hh_mode_diffs.iteritems():
+        # Estimate trips diverted/eliminated for each household-person individually.
+        # (Joint trips are all bundled for a single "household-person".)
+        for hh_pers, trip_diff_dict in hh_mode_diffs.iteritems():
             diff_auto = trip_diff_dict['auto']
             diff_dtt = trip_diff_dict['dtt']
             diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
 
-            hh_auto_trips_diverted[hh_id] = 0
-            hh_auto_trips_eliminated[hh_id] = 0
+            hh_auto_trips_diverted[hh_pers] = 0
+            hh_auto_trips_eliminated[hh_pers] = 0
 
             # Account for all lost auto-only trips
             if diff_auto < 0:
@@ -948,20 +949,20 @@ class Comparison(object):
 
                     # First assume lost trips were diverted (drive-to-transit)
                     if diff_dtt > 0:
-                        hh_auto_trips_diverted[hh_id] += 1
+                        hh_auto_trips_diverted[hh_pers] += 1
                         diff_dtt -= 1
                         diff_auto += 1
 
                     # Then assume lost trips were eliminated (walk-to-transit/other)
                     elif diff_wtt_oth > 0:
-                        hh_auto_trips_eliminated[hh_id] += 1
+                        hh_auto_trips_eliminated[hh_pers] += 1
                         diff_wtt_oth -= 1
                         diff_auto += 1
 
                     # Finally, add the remainder (auto trips completely eliminated,
                     # not replaced/shortened with transit) to trips eliminated
                     else:
-                        hh_auto_trips_eliminated[hh_id] += abs(diff_auto)
+                        hh_auto_trips_eliminated[hh_pers] += abs(diff_auto)
                         diff_auto = 0
 
             # Account for all gained auto-only trips
@@ -970,26 +971,26 @@ class Comparison(object):
 
                     # First assume gained trips were lengthened from drive-to-transit
                     if diff_dtt < 0:
-                        hh_auto_trips_diverted[hh_id] -= 1
+                        hh_auto_trips_diverted[hh_pers] -= 1
                         diff_dtt += 1
                         diff_auto -= 1
 
                     # Then assume gained trips replaced walk-to-transit/other
                     elif diff_wtt_oth < 0:
-                        hh_auto_trips_eliminated[hh_id] -= 1
+                        hh_auto_trips_eliminated[hh_pers] -= 1
                         diff_wtt_oth += 1
                         diff_auto -= 1
 
                     # Finally, subtract the remainder (totally new auto trips)
                     # from trips eliminated
                     else:
-                        hh_auto_trips_eliminated[hh_id] -= abs(diff_auto)
+                        hh_auto_trips_eliminated[hh_pers] -= abs(diff_auto)
                         diff_auto = 0
 
             ## Account for auto portion of any new or eliminated drive-to-transit trips.
             ## (Is it fair to count these as auto trips added/eliminated?)
             #if diff_dtt != 0:
-            #    hh_auto_trips_eliminated[hh_id] -= diff_dtt
+            #    hh_auto_trips_eliminated[hh_pers] -= diff_dtt
             #    diff_dtt = 0
 
         auto_trips_diverted = sum(hh_auto_trips_diverted.itervalues())
