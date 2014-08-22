@@ -709,9 +709,6 @@ class Comparison(object):
     def __init__(self, base_abm, test_abm):
         self.base = base_abm
         self.test = test_abm
-        self.open_dbs()
-        self._person_mode_diffs = self._get_person_mode_diffs()
-        self.close_dbs()
         return None
 
     def __str__(self):
@@ -823,10 +820,12 @@ class Comparison(object):
 
     def print_auto_trips_affected(self):
         ''' Print the estimated number of auto trips diverted or eliminated. '''
+        person_mode_diffs = self._get_person_mode_diffs()
         person_auto_trips_diverted = {}
         person_auto_trips_eliminated = {}
 
-        for pers_id, trip_diff_dict in self._person_mode_diffs.iteritems():
+        # Estimate trips diverted/eliminated for each person individually
+        for pers_id, trip_diff_dict in person_mode_diffs.iteritems():
             diff_auto = trip_diff_dict['auto']
             diff_dtt = trip_diff_dict['dtt']
             diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
@@ -878,7 +877,8 @@ class Comparison(object):
                         person_auto_trips_eliminated[pers_id] -= abs(diff_auto)
                         diff_auto = 0
 
-            ## Account for auto portion of any new or eliminated drive-to-transit trips
+            ## Account for auto portion of any new or eliminated drive-to-transit trips.
+            ## (Is it fair to count these as auto trips added/eliminated?)
             #if diff_dtt != 0:
             #    person_auto_trips_eliminated[pers_id] -= diff_dtt
             #    diff_dtt = 0
