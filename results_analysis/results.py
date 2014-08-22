@@ -778,6 +778,40 @@ class Comparison(object):
         print 'Person-trips and mean user class by {0} {1} have been exported to {2}.\n'.format(trip_end, geography, csv_path)
         return None
 
+    def _get_hh_mode_diffs(self):
+        ''' Calculate the change in trips, by mode, for each household. '''
+        sql_template = 'SELECT hh_id+"-"+pers_num AS hh_pers, COUNT(*) FROM Trips WHERE mode in ({0}) GROUP BY hh_pers'
+        mode_groups = {
+            'auto': '1, 2, 3, 4, 5, 6',
+            'dtt': '11, 12',
+            'wtt': '9, 10',
+            'other': '7, 8, 13, 14'
+        }
+
+        # Find all unique households from both scenarios
+        unique_hh_pers_query = 'SELECT DISTINCT hh_id+"-"+pers_num AS hh_pers FROM Trips'
+        unique_hh_pers_base = set(r[0] for r in self.base.query(unique_hh_pers_query))
+        unique_hh_pers_test = set(r[0] for r in self.test.query(unique_hh_pers_query))
+        unique_hh_pers = unique_hh_pers_base | unique_hh_pers_test  # Union of the two
+
+        # Create base/test/diff trips dicts, initialized with 0's
+        trips_dict_template = {group_key: 0 for group_key in mode_groups.keys()}
+        trips_dict_base = {hh_pers_id: trips_dict_template.copy() for hh_pers_id in unique_hh_pers}
+        trips_dict_test = copy.deepcopy(trips_dict_base)
+        trips_dict_diff = copy.deepcopy(trips_dict_base)
+
+        # Populate dicts
+        for group_key, mode_list in mode_groups.iteritems():
+            mode_sql = sql_template.format(mode_list)
+            for hh_pers_id, count in self.base.query(mode_sql):
+                trips_dict_base[hh_pers_id][group_key] = self.base._unsample(count)
+            for hh_pers_id, count in self.test.query(mode_sql):
+                trips_dict_test[hh_pers_id][group_key] = self.test._unsample(count)
+            for hh_pers_id in trips_dict_diff.keys():
+                trips_dict_diff[hh_pers_id][group_key] = trips_dict_test[hh_pers_id][group_key] - trips_dict_base[hh_pers_id][group_key]
+
+        return trips_dict_diff
+
     def _get_person_mode_diffs(self):
         ''' Calculate the change in trips, by mode, for each person. '''
         sql_template = 'SELECT pers_id, COUNT(*) FROM PersonTrips WHERE mode in ({0}) GROUP BY pers_id'
@@ -818,11 +852,11 @@ class Comparison(object):
         self.test.open_db()
         return None
 
-    def print_auto_trips_affected(self):
-        ''' Print the estimated number of auto trips diverted or eliminated. '''
+    def print_auto_ptrips_affected(self):
+        ''' Print the estimated number of auto person-trips diverted or eliminated. '''
         person_mode_diffs = self._get_person_mode_diffs()
-        person_auto_trips_diverted = {}
-        person_auto_trips_eliminated = {}
+        person_auto_ptrips_diverted = {}
+        person_auto_ptrips_eliminated = {}
 
         # Estimate trips diverted/eliminated for each person individually
         for pers_id, trip_diff_dict in person_mode_diffs.iteritems():
@@ -830,8 +864,8 @@ class Comparison(object):
             diff_dtt = trip_diff_dict['dtt']
             diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
 
-            person_auto_trips_diverted[pers_id] = 0
-            person_auto_trips_eliminated[pers_id] = 0
+            person_auto_ptrips_diverted[pers_id] = 0
+            person_auto_ptrips_eliminated[pers_id] = 0
 
             # Account for all lost auto-only trips
             if diff_auto < 0:
@@ -839,20 +873,20 @@ class Comparison(object):
 
                     # First assume lost trips were diverted (drive-to-transit)
                     if diff_dtt > 0:
-                        person_auto_trips_diverted[pers_id] += 1
+                        person_auto_ptrips_diverted[pers_id] += 1
                         diff_dtt -= 1
                         diff_auto += 1
 
                     # Then assume lost trips were eliminated (walk-to-transit/other)
                     elif diff_wtt_oth > 0:
-                        person_auto_trips_eliminated[pers_id] += 1
+                        person_auto_ptrips_eliminated[pers_id] += 1
                         diff_wtt_oth -= 1
                         diff_auto += 1
 
                     # Finally, add the remainder (auto trips completely eliminated,
                     # not replaced/shortened with transit) to trips eliminated
                     else:
-                        person_auto_trips_eliminated[pers_id] += abs(diff_auto)
+                        person_auto_ptrips_eliminated[pers_id] += abs(diff_auto)
                         diff_auto = 0
 
             # Account for all gained auto-only trips
@@ -861,34 +895,109 @@ class Comparison(object):
 
                     # First assume gained trips were lengthened from drive-to-transit
                     if diff_dtt < 0:
-                        person_auto_trips_diverted[pers_id] -= 1
+                        person_auto_ptrips_diverted[pers_id] -= 1
                         diff_dtt += 1
                         diff_auto -= 1
 
                     # Then assume gained trips replaced walk-to-transit/other
                     elif diff_wtt_oth < 0:
-                        person_auto_trips_eliminated[pers_id] -= 1
+                        person_auto_ptrips_eliminated[pers_id] -= 1
                         diff_wtt_oth += 1
                         diff_auto -= 1
 
                     # Finally, subtract the remainder (totally new auto trips)
                     # from trips eliminated
                     else:
-                        person_auto_trips_eliminated[pers_id] -= abs(diff_auto)
+                        person_auto_ptrips_eliminated[pers_id] -= abs(diff_auto)
                         diff_auto = 0
 
             ## Account for auto portion of any new or eliminated drive-to-transit trips.
             ## (Is it fair to count these as auto trips added/eliminated?)
             #if diff_dtt != 0:
-            #    person_auto_trips_eliminated[pers_id] -= diff_dtt
+            #    person_auto_ptrips_eliminated[pers_id] -= diff_dtt
             #    diff_dtt = 0
 
-        auto_trips_diverted = sum(person_auto_trips_diverted.itervalues())
-        auto_trips_eliminated = sum(person_auto_trips_eliminated.itervalues())
+        auto_ptrips_diverted = sum(person_auto_ptrips_diverted.itervalues())
+        auto_ptrips_eliminated = sum(person_auto_ptrips_eliminated.itervalues())
 
         print ' '
-        print 'AUTO PERSON-TRIPS DIVERTED: {0:>10,.0f}'.format(auto_trips_diverted)
-        print 'AUTO PERSON-TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_trips_eliminated)
+        print 'AUTO PERSON-TRIPS DIVERTED: {0:>10,.0f}'.format(auto_ptrips_diverted)
+        print 'AUTO PERSON-TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_ptrips_eliminated)
+        print ' '
+
+        return None
+
+    def print_auto_trips_affected(self):
+        ''' Print the estimated number of auto trips diverted or eliminated. '''
+        hh_mode_diffs = self._get_hh_mode_diffs()
+        hh_auto_trips_diverted = {}
+        hh_auto_trips_eliminated = {}
+
+        # Estimate trips diverted/eliminated for each household individually
+        for hh_id, trip_diff_dict in hh_mode_diffs.iteritems():
+            diff_auto = trip_diff_dict['auto']
+            diff_dtt = trip_diff_dict['dtt']
+            diff_wtt_oth = trip_diff_dict['wtt'] + trip_diff_dict['other']
+
+            hh_auto_trips_diverted[hh_id] = 0
+            hh_auto_trips_eliminated[hh_id] = 0
+
+            # Account for all lost auto-only trips
+            if diff_auto < 0:
+                while diff_auto < 0:
+
+                    # First assume lost trips were diverted (drive-to-transit)
+                    if diff_dtt > 0:
+                        hh_auto_trips_diverted[hh_id] += 1
+                        diff_dtt -= 1
+                        diff_auto += 1
+
+                    # Then assume lost trips were eliminated (walk-to-transit/other)
+                    elif diff_wtt_oth > 0:
+                        hh_auto_trips_eliminated[hh_id] += 1
+                        diff_wtt_oth -= 1
+                        diff_auto += 1
+
+                    # Finally, add the remainder (auto trips completely eliminated,
+                    # not replaced/shortened with transit) to trips eliminated
+                    else:
+                        hh_auto_trips_eliminated[hh_id] += abs(diff_auto)
+                        diff_auto = 0
+
+            # Account for all gained auto-only trips
+            elif diff_auto > 0:
+                while diff_auto > 0:
+
+                    # First assume gained trips were lengthened from drive-to-transit
+                    if diff_dtt < 0:
+                        hh_auto_trips_diverted[hh_id] -= 1
+                        diff_dtt += 1
+                        diff_auto -= 1
+
+                    # Then assume gained trips replaced walk-to-transit/other
+                    elif diff_wtt_oth < 0:
+                        hh_auto_trips_eliminated[hh_id] -= 1
+                        diff_wtt_oth += 1
+                        diff_auto -= 1
+
+                    # Finally, subtract the remainder (totally new auto trips)
+                    # from trips eliminated
+                    else:
+                        hh_auto_trips_eliminated[hh_id] -= abs(diff_auto)
+                        diff_auto = 0
+
+            ## Account for auto portion of any new or eliminated drive-to-transit trips.
+            ## (Is it fair to count these as auto trips added/eliminated?)
+            #if diff_dtt != 0:
+            #    hh_auto_trips_eliminated[hh_id] -= diff_dtt
+            #    diff_dtt = 0
+
+        auto_trips_diverted = sum(hh_auto_trips_diverted.itervalues())
+        auto_trips_eliminated = sum(hh_auto_trips_eliminated.itervalues())
+
+        print ' '
+        print 'AUTO TRIPS DIVERTED: {0:>10,.0f}'.format(auto_trips_diverted)
+        print 'AUTO TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_trips_eliminated)
         print ' '
 
         return None
@@ -1051,6 +1160,7 @@ def main(build_db=True):
     comp.print_new_dtt()
     comp.print_new_wtt()
     comp.print_new_other()
+    comp.print_auto_ptrips_affected()
     comp.print_auto_trips_affected()
 
     comp.close_dbs()
