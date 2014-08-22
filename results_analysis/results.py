@@ -780,7 +780,7 @@ class Comparison(object):
 
     def _get_hh_mode_diffs(self):
         ''' Calculate the change in trips, by mode, for each household. '''
-        sql_template = 'SELECT hh_id+"-"+pers_num AS hh_pers, COUNT(*) FROM Trips WHERE mode in ({0}) GROUP BY hh_pers'
+        sql_template = 'SELECT hh_id||"-"||pers_num AS hh_pers, COUNT(*) FROM Trips WHERE mode in ({0}) GROUP BY hh_pers'
         mode_groups = {
             'auto': '1, 2, 3, 4, 5, 6',
             'dtt': '11, 12',
