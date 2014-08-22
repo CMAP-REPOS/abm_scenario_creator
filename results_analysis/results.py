@@ -789,7 +789,7 @@ class Comparison(object):
         }
 
         # Find all unique households from both scenarios
-        unique_hh_pers_query = 'SELECT DISTINCT hh_id+"-"+pers_num AS hh_pers FROM Trips'
+        unique_hh_pers_query = 'SELECT DISTINCT hh_id||"-"||pers_num AS hh_pers FROM Trips'
         unique_hh_pers_base = set(r[0] for r in self.base.query(unique_hh_pers_query))
         unique_hh_pers_test = set(r[0] for r in self.test.query(unique_hh_pers_query))
         unique_hh_pers = unique_hh_pers_base | unique_hh_pers_test  # Union of the two
