@@ -921,8 +921,8 @@ class Comparison(object):
         auto_ptrips_eliminated = sum(person_auto_ptrips_eliminated.itervalues())
 
         print ' '
-        print 'AUTO PERSON-TRIPS DIVERTED: {0:>10,.0f}'.format(auto_ptrips_diverted)
-        print 'AUTO PERSON-TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_ptrips_eliminated)
+        print '{0:<30}{1:>8,.0f}'.format('AUTO PERSON-TRIPS DIVERTED:', auto_ptrips_diverted)
+        print '{0:<30}{1:>8,.0f}'.format('AUTO PERSON-TRIPS ELIMINATED:', auto_ptrips_eliminated)
         print ' '
 
         return None
@@ -996,8 +996,8 @@ class Comparison(object):
         auto_trips_eliminated = sum(hh_auto_trips_eliminated.itervalues())
 
         print ' '
-        print 'AUTO TRIPS DIVERTED: {0:>10,.0f}'.format(auto_trips_diverted)
-        print 'AUTO TRIPS ELIMINATED: {0:>8,.0f}'.format(auto_trips_eliminated)
+        print '{0:<30}{1:>8,.0f}'.format('AUTO TRIPS DIVERTED:', auto_trips_diverted)
+        print '{0:<30}{1:>8,.0f}'.format('AUTO TRIPS ELIMINATED:', auto_trips_eliminated)
         print ' '
 
         return None
@@ -1160,8 +1160,8 @@ def main(build_db=True):
     comp.print_new_dtt()
     comp.print_new_wtt()
     comp.print_new_other()
-    comp.print_auto_ptrips_affected()
     comp.print_auto_trips_affected()
+    comp.print_auto_ptrips_affected()
 
     comp.close_dbs()
 
