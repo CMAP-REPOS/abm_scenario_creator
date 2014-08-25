@@ -1104,7 +1104,7 @@ def main(build_db=True):
     comp.print_new_wtt()
     comp.print_new_other()
     comp.print_auto_trips_affected()
-    comp.print_auto_ptrips_affected()
+    #comp.print_auto_ptrips_affected()
 
     comp.close_dbs()
 
