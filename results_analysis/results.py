@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 8/25/14
+    Revised: 8/27/14
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -1064,7 +1064,7 @@ class Comparison(object):
 def main(build_db=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(r'Y:\nmp\basic_template_20140521', 0.05, build_db)
+    base = ABM(r'Y:\nmp\cmaq_base_20140521', 0.05, build_db)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
