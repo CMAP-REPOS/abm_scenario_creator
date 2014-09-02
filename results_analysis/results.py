@@ -1064,7 +1064,7 @@ class Comparison(object):
 def main(build_db=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(r'Y:\nmp\cmaq_base_20140521', 0.05, build_db)
+    base = ABM(r'M:\nmp\CMAQ_ABM_Models\cmaq_base_20140521', 0.05, build_db)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
@@ -1074,7 +1074,7 @@ def main(build_db=True):
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(r'Y:\nmp\basic_template_20140527', 0.05, build_db)
+    test = ABM(r'M:\nmp\CMAQ_ABM_Models\cmaq_node_max_20140527', 0.05, build_db)
     test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
