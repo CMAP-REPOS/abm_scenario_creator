@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 8/27/14
+    Revised: 9/8/14
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -1016,7 +1016,7 @@ class Comparison(object):
             base_ptrips = self.base.ptrips_by_class[uclass]
             test_ptrips = self.test.ptrips_by_class[uclass]
             ptrips_diff = test_ptrips - base_ptrips
-            ptrips_pct_diff = ptrips_diff / total_base_ptrips
+            ptrips_pct_diff = ptrips_diff / base_ptrips
             print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('User Class {0}'.format(uclass), ptrips_diff, ptrips_pct_diff)
         print '{0:<25}{1:>+10,.0f} ({2:+.2%})'.format('All User Classes', total_ptrips_diff, total_pct_diff)
         print ' '
@@ -1061,10 +1061,12 @@ class Comparison(object):
 
 
 ### SCRIPT MODE ###
-def main(build_db=True):
+def main(base_dir=r'M:\nmp\CMAQ_ABM_Models\cmaq_base_20140521',
+         test_dir=r'M:\nmp\CMAQ_ABM_Models\cmaq_node_max_20140527',
+         build_dbs=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(r'M:\nmp\CMAQ_ABM_Models\cmaq_base_20140521', 0.05, build_db)
+    base = ABM(base_dir, 0.05, build_dbs)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
@@ -1074,7 +1076,7 @@ def main(build_db=True):
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(r'M:\nmp\CMAQ_ABM_Models\cmaq_node_max_20140527', 0.05, build_db)
+    test = ABM(test_dir, 0.05, build_dbs)
     test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
