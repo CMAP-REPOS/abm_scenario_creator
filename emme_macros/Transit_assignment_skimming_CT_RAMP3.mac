@@ -36,7 +36,7 @@ q
 ~/SETTING ASSIGNMENT & SKIMMING PARAMETERS
 / CALCULATE WAIT TIME FUNCTION USED AS FRACTION OF HDWY
 ~r01=0.50000 /slope for 1st segment (high frequency) bus
-~r02=0.40000 /slope for 2nd segemnt (med frequency)  bus
+~r02=0.40000 /slope for 2nd segment (med frequency)  bus
 ~r03=0.35000 /slope for 3rd segment (low frequency)  bus
 ~r04=0.08333 /slope for 4th segment (very low freq)  bus
 ~r05=10      /length of 1st segment, min bus
@@ -59,7 +59,7 @@ q
 ~+|)))/hdwy
 ~+||mod=BEPQL||4|q
 ~r01=0.50000 /slope for 1st segment (high frequency) rail
-~r02=0.15000 /slope for 2nd segemnt (med frequency)  rail
+~r02=0.15000 /slope for 2nd segment (med frequency)  rail
 ~r03=0.10000 /slope for 3rd segment (low frequency)  rail
 ~r04=0.03333 /slope for 4th segment (very low freq)  rail
 ~r05=10      /length of 1st segment, min rail
@@ -108,9 +108,9 @@ q
 ~#   ~r24=3.5 /5=Metra rail terminal
 ~+|1|y|@timbo|n|0.5|.max.(0.5*@bstyp+1.5*((@bstyp-4).max.0)-0.5)|.max.(0.5*@rstyp+1.5*((@rstyp-4).max.0)-0.5)|.min.3.5||all|4
 ~+|1|y|@timbf|n|@timbo||all|4
-~# Modified @easbp calculation to allow continuous @bstyp/@rstyp values,
+~# Modified @easbp calculation to allow continuous @easeb values,
 ~# defined to match original specifications below (NMP 5/28/14):
-~#   ~r25=2.0 /additional penalty in min for worst ease of boarding (1=staiscase vs. 3=level platform)
+~#   ~r25=2.0 /additional penalty in min for worst ease of boarding (1=staircase vs. 3=level platform)
 ~#   ~r26=1.0 /additional penalty in min for medium ease of boarding (2=low floor vs. 3=level platform)
 ~+|1|y|@easbp|n|(3-@easeb).max.0||all|4
 ~+|1|y|@perbo|n|%r27%||all|4
@@ -648,7 +648,7 @@ BCPLuvxybcrEQMmwztdae
 0.05   /Truncation/cutoff parameter
 2      /Distribute flow between attractive lines at stops by: 1=frequency (standard), 2=frequency and transit time to destination
 1      /Use frequency and transit time to destination: 1=everywhere, 2=based on node attribute
-3      /Source for effective headways: 1=actual line heaway, 2=user-defined line attribute, 3=user-defined segment attribute
+3      /Source for effective headways: 1=actual line headway, 2=user-defined line attribute, 3=user-defined segment attribute
 @hdwef /Effective headway multiplied by the fraction to get wait time
 1      /Headway fraction (already accounted in effective headway)
 1      /Spread factor (mutiplied on perception factor)
@@ -657,7 +657,7 @@ BCPLuvxybcrEQMmwztdae
 @timbf /Node attribute containing boarding time (by station type)
 @perbf /Node boarding time perception factor
 @easbp /Line attribute containing additional boarding time (ease of boarding by mode)
-1      /Line boarding time perception factor3
+1      /Line boarding time perception factor
 3      /Source for boarding cost: 1=same value for entire network, 2=node-specific, 3=line-specific, 4=node and line specific
 ut1    /Line attribute contating boarding cost, cents
 %rz%   /Line boarding cost perception factor (1/VOT, min/cent)
