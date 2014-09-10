@@ -1061,8 +1061,8 @@ class Comparison(object):
 
 
 ### SCRIPT MODE ###
-def main(base_dir=r'M:\nmp\CMAQ_ABM_Models\cmaq_base_20140521',
-         test_dir=r'M:\nmp\CMAQ_ABM_Models\cmaq_node_max_20140827',
+def main(base_dir=r'\\CMAPNAS09\MODstore\CMAQ_ABM_Models\cmaq_base_20140521',
+         test_dir=r'\\CMAPNAS09\MODstore\CMAQ_ABM_Models\cmaq_node_max_20140827',
          build_dbs=True):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
