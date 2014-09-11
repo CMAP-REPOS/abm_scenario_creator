@@ -1,5 +1,6 @@
 /Transit Assignment and Skimming for CT-RAMP
 /Extended set of premium transit attributes 2013
+/Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
 ~o=295
 reports=nul
 /Transit scenario
@@ -100,13 +101,7 @@ q
 / CALCULATE BASE BOARDING TIME BY STATION TYPE (ELEVATOR, TRAVERSAL)
 ~r27=2.5 /boarding time weight (base perception factor)
 2.41
-~# Modified @timbo calculation to allow continuous @bstyp/@rstyp values,
-~# defined to match original specifications below (NMP 5/28/14):
-~#   ~r21=0.5 /1,2=bus stops: pole, shelter
-~#   ~r22=1.0 /3=bus plaza,
-~#   ~r23=1.5 /4=CTA, Metra station
-~#   ~r24=3.5 /5=Metra rail terminal
-~+|1|y|@timbo|n|0.5|.max.(0.5*@bstyp+1.5*((@bstyp-4).max.0)-0.5)|.max.(0.5*@rstyp+1.5*((@rstyp-4).max.0)-0.5)|.min.3.5||all|4
+~# @timbo values are now batched in from inputs/bus_node_extra_attributes.csv & inputs/rail_node_extra_attributes.csv
 ~+|1|y|@timbf|n|@timbo||all|4
 ~# Modified @easbp calculation to allow continuous @easeb values,
 ~# defined to match original specifications below (NMP 5/28/14):

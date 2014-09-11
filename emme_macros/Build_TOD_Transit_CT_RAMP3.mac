@@ -2,7 +2,7 @@
 ~# BUILD_TOD_TRANSIT_CT_RAMP
 ~#   Based on BUILD_TOD_TRANSIT of Craig Heither, last revised 02/13/2012
 ~#   Adjusted for CT-RAMP by Peter Vovsha, last revised 12/15/2012
-~#   Modifications by Noel Peterson for Transit Modernization Model, 05/28/2014
+~#   Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
 ~#  ************************************************************************************************
 ~#    Macro used to create time-of-day-specific transit network for assignment & skimming
 ~#    Segment variable @hwytm is populated with congested travel time
@@ -189,18 +189,20 @@ batchin=%t2%\cermakbrt_parking.csv
 ~+; 3; @pspac; n; all; 1,2; n; y
 ~+; 3; @pcost; n; all; 1,3; n; y; q
 ~:skip
-~# BATCHIN BUS STOP TYPE & REAL-TIME INFO
+~# BATCHIN BUS STOP TYPE, REAL-TIME INFO & BASE BOARDING TIME
 batchin=%t2%\bus_node_extra_attributes.csv
 2.41
 ~+; 3; @bstyp; n; all; 1,8; n; y
-~+; 3; @bsinf; n; all; 1,9; n; y; q
-~# BATCHIN RAIL STATION PARKING SPACES, PARING COST, TYPE & REAL-TIME INFO
+~+; 3; @bsinf; n; all; 1,9; n; y
+~+; 3; @timbo; n; all; 1,10; n; y; q
+~# BATCHIN RAIL STATION PARKING SPACES, PARKING COST, TYPE, REAL-TIME INFO & BASE BOARDING TIME
 batchin=%t2%\rail_node_extra_attributes.csv
 2.41
 ~+; 3; @rspac; n; all; 1,2; n; y
 ~+; 3; @rpcos; n; all; 1,3; n; y
 ~+; 3; @rstyp; n; all; 1,5; n; y
-~+; 3; @rsinf; n; all; 1,6; n; y; q
+~+; 3; @rsinf; n; all; 1,6; n; y
+~+; 3; @timbo; n; all; 1,7; n; y; q
 ~# BATCHIN PEDESTRIAN ENVIRONMENT FACTOR
 batchin=%t2%\hwy_node_pef.csv
 2.41
