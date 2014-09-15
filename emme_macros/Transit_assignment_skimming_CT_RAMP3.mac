@@ -1,6 +1,6 @@
 /Transit Assignment and Skimming for CT-RAMP
 /Extended set of premium transit attributes 2013
-/Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
+/Modifications by Noel Peterson for Transit Modernization Model, 9/13/2014
 ~o=295
 reports=nul
 /Transit scenario
@@ -102,6 +102,7 @@ q
 ~r27=2.5 /boarding time weight (base perception factor)
 2.41
 ~# @timbo values are now batched in from inputs/bus_node_extra_attributes.csv & inputs/rail_node_extra_attributes.csv
+~# by Build_TOD_Transit_CT_RAMP3.mac (NMP 9/13/14)
 ~+|1|y|@timbf|n|@timbo||all|4
 ~# Modified @easbp calculation to allow continuous @easeb values,
 ~# defined to match original specifications below (NMP 5/28/14):

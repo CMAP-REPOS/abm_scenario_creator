@@ -2,7 +2,7 @@
 ~# BUILD_TOD_TRANSIT_CT_RAMP
 ~#   Based on BUILD_TOD_TRANSIT of Craig Heither, last revised 02/13/2012
 ~#   Adjusted for CT-RAMP by Peter Vovsha, last revised 12/15/2012
-~#   Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
+~#   Modifications by Noel Peterson for Transit Modernization Model, 09/13/2014
 ~#  ************************************************************************************************
 ~#    Macro used to create time-of-day-specific transit network for assignment & skimming
 ~#    Segment variable @hwytm is populated with congested travel time
