@@ -264,6 +264,7 @@ class ABM(object):
                 jnode INTEGER,
                 tod INTEGER,
                 transit_mode TEXT,
+                is_rail BOOLEAN,
                 boardings REAL,
                 allow_boardings BOOLEAN,
                 passengers REAL,
@@ -671,6 +672,7 @@ class ABM(object):
                     link = tseg.link
                     tline = tseg.line
                     tline_desc = tline.description  # Should this be trimmed? Combined with mode (tline[0])?
+                    is_rail = True if tline.mode.id.upper() in ('C', 'M') else False
                     boardings = tseg.transit_boardings
                     allow_brd = tseg.allow_boardings
                     passengers = tseg.transit_volume
@@ -680,7 +682,7 @@ class ABM(object):
                     # Insert into table (if valid link)
                     db_row = (
                         tseg.id, tline.id, tline_desc, tseg.number,
-                        inode.number, jnode.number, tod, tline.mode.id,
+                        inode.number, jnode.number, tod, tline.mode.id, is_rail,
                         boardings, allow_brd, passengers, pass_hrs, pass_mi
                     )
                     insert_sql = 'INSERT INTO TransitSegs VALUES ({0})'.format(','.join(['?'] * len(db_row)))
