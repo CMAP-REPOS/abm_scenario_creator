@@ -496,7 +496,6 @@ class ABM(object):
         ''' Populate the Households table from a CSV. '''
         with open(hh_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
-            rows = 0
             for d in r:
 
                 # Get values
@@ -544,7 +543,6 @@ class ABM(object):
         ''' Populate the People table from a CSV. '''
         with open(pers_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
-            rows = 0
             for d in r:
                 # Get values
                 hh_id = int(d['hh_id'])
@@ -571,7 +569,6 @@ class ABM(object):
         ''' Populate the Tours and PersonTours tables from a CSV. '''
         with open(tours_csv, 'rb') as csvfile:
             r = csv.DictReader(csvfile)
-            rows = 0
             for d in r:
                 # Get values
                 hh_id = int(d['hh_id'])
@@ -617,7 +614,6 @@ class ABM(object):
             tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
 
             r = csv.DictReader(csvfile)
-            rows = 0
             for d in r:
                 # Get values
                 hh_id = int(d['hh_id'])
@@ -707,7 +703,6 @@ class ABM(object):
     def _insert_tsegs(self):
         ''' Populate the TransitSegs table from Emme transit assignments. '''
         emmebank = _eb.Emmebank(self._emmebank_path)
-        rows = 0
         for tod in xrange(1, 9):
             scenario_id = '10{0}'.format(tod)
             scenario = emmebank.scenario(scenario_id)
