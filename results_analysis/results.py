@@ -1178,12 +1178,12 @@ class Comparison(object):
 
 
 ### SCRIPT MODE ###
-def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20140911',
-         test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_max_20140917',
-         build_dbs=True):
+def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
+         test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_max_20141215',
+         build_dbs=False):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(base_dir, 0.05, build_dbs)
+    base = ABM(base_dir, 0.20, build_dbs)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
@@ -1193,7 +1193,7 @@ def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20140911',
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(test_dir, 0.05, build_dbs)
+    test = ABM(test_dir, 0.20, build_dbs)
     test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
