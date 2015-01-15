@@ -610,7 +610,7 @@ class ABM(object):
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV and the People & Tours tables. '''
         # Get people user-classes and tour categories for setting person-trip user-class
-        people_uclasses = {r[0]: list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
+        people_uclasses = {r[0]: list(r[1:]) for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
         tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
 
         # Load CSV into a pandas dataframe for easy slicing/querying
