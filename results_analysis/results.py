@@ -67,7 +67,7 @@ class ABM(object):
     zones = range(1, 1945)
 
     # --- Init ---
-    def __init__(self, abm_dir, sample_rate=0.05, build_db=True):
+    def __init__(self, abm_dir, sample_rate=0.20, build_db=False):
 
         ### DEBUG ###
         import datetime
@@ -622,9 +622,9 @@ class ABM(object):
                 # Filter trips by mode
                 if matrix_mode == 0:  # Walk, bike, walk-to-transit
                     trip_modes = [7, 8, 9, 10]
-                if matrix_mode == 1:  # Drive alone, free
+                elif matrix_mode == 1:  # Drive alone, free
                     trip_modes = [1, 11, 12, 13, 14]  # Include drive-to-transit, taxis, school buses
-                else:
+                else:  # Other driving modes
                     trip_modes = [matrix_mode]
                 mode_trips = trips[trips.trip_mode.isin(trip_modes)]
 
