@@ -68,12 +68,6 @@ class ABM(object):
 
     # --- Init ---
     def __init__(self, abm_dir, sample_rate=0.20, build_db=False):
-
-        ### DEBUG ###
-        import datetime
-        print str(datetime.datetime.now())
-        ### /DEBUG ###
-
         self.dir = abm_dir
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
@@ -268,11 +262,6 @@ class ABM(object):
         self.ptrips_by_class = self._get_ptrips_by_class()
 
         self.close_db()
-
-        ### DEBUG ###
-        import datetime
-        print str(datetime.datetime.now())
-        ### /DEBUG ###
 
         return None  ### End of ABM.__init__() ###
 
@@ -610,7 +599,7 @@ class ABM(object):
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV and the People & Tours tables. '''
         # Get people user-classes and tour categories for setting person-trip user-class
-        people_uclasses = {r[0]: list(r[1:]) for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
+        people_uclasses = {r[0]: list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
         tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
 
         # Load CSV into a pandas dataframe for easy slicing/querying
@@ -1212,7 +1201,7 @@ class Comparison(object):
 
 ### SCRIPT MODE ###
 def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
-         test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_max_20141215',
+         test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_mod_20150109',
          build_dbs=False):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
