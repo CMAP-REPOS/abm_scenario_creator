@@ -1,6 +1,7 @@
 from results import *
 
 GROUPS = 7
+FRACTION = 0.5
 REBUILD_DBS = False
 
 # Initialize ABM objects
@@ -22,8 +23,8 @@ boardings_b = {
 }
 
 groups_b = {
-    'LINE': b._get_boarding_groups(boardings_b['LINE'], GROUPS),
-    'NODE': b._get_boarding_groups(boardings_b['NODE'], GROUPS)
+    'LINE': b._get_boarding_groups(boardings_b['LINE'], GROUPS, FRACTION),
+    'NODE': b._get_boarding_groups(boardings_b['NODE'], GROUPS, FRACTION)
 }
 
 
