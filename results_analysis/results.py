@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 1/14/15
+    Revised: 1/28/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -241,6 +241,7 @@ class ABM(object):
                 tseg_id TEXT PRIMARY KEY,
                 tline_id TEXT,
                 tline_desc TEXT,
+                headway REAL,
                 tseg_num INTEGER,
                 inode INTEGER,
                 jnode INTEGER,
@@ -744,7 +745,7 @@ class ABM(object):
 
                     # Insert into table (if valid link)
                     db_row = (
-                        tseg.id, tline.id, tline_desc, tseg.number,
+                        tseg.id, tline.id, tline_desc, tline.headway, tseg.number,
                         inode.number, jnode.number, tod, tline.mode.id, is_rail,
                         boardings, allow_brd, passengers, pass_hrs, pass_mi
                     )
