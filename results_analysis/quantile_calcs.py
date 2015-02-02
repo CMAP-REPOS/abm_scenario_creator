@@ -17,13 +17,13 @@ t_ln3 = ABM(r'X:\CMAQ_ABM_Models\cmaq_line_max_20141208', 0.20, REBUILD_DBS)
 
 # Get base boardings and quantiles
 boardings_b = {
-    'NODE': b._get_boardings('NODE'),
-    'LINE': b._get_boardings('LINE')
+    'LINE': b._get_boardings('LINE'),
+    'NODE': b._get_boardings('NODE')
 }
 
 quantiles_b = {
-    'NODE': b._get_boarding_quantiles(boardings_b['NODE'], QUANTILES),
-    'LINE': b._get_boarding_quantiles(boardings_b['LINE'], QUANTILES)
+    'LINE': b._get_boarding_quantiles(boardings_b['LINE'], QUANTILES),
+    'NODE': b._get_boarding_quantiles(boardings_b['NODE'], QUANTILES)
 }
 
 
@@ -75,10 +75,10 @@ def compare_boardings(t, node_or_line, mode=''):
 
     return brd_t
 
-boardings_t_nd1 = compare_boardings(t_nd1, 'NODE')
-boardings_t_nd2 = compare_boardings(t_nd2, 'NODE')
-boardings_t_nd3 = compare_boardings(t_nd3, 'NODE')
-
 boardings_t_ln1 = compare_boardings(t_ln1, 'LINE')
 boardings_t_ln2 = compare_boardings(t_ln2, 'LINE')
 boardings_t_ln3 = compare_boardings(t_ln3, 'LINE')
+
+boardings_t_nd1 = compare_boardings(t_nd1, 'NODE')
+boardings_t_nd2 = compare_boardings(t_nd2, 'NODE')
+boardings_t_nd3 = compare_boardings(t_nd3, 'NODE')
