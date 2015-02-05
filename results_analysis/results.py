@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 1/28/15
+    Revised: 2/2/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -53,6 +53,17 @@ class ABM(object):
         8,8,8,8,               # CT-RAMP periods 28-31: TOD 8 [6pm, 8pm)
         1,1,1,1,1,1,1,1,1,1,1  # CT-RAMP periods 32-42: TOD 1 [8pm, 3am)
     ]
+
+    tod_minutes = {
+        1: 600.0,
+        2: 60.0,
+        3: 120.0,
+        4: 60.0,
+        5: 240.0,
+        6: 120.0,
+        7: 120.0,
+        8: 120.0
+    }
 
     transit_modes = {
         'M': 'Metra Rail',
@@ -172,6 +183,11 @@ class ABM(object):
             self._insert_tours(self._tours_indiv_csv, is_joint=False)
             self._insert_tours(self._tours_joint_csv, is_joint=True)
 
+            self._con.execute('CREATE INDEX IX_Tours_isjnt ON Tours (is_joint)')
+            self._con.execute('CREATE INDEX IX_Tours_mode ON Tours (mode)')
+            self._con.execute('CREATE INDEX IX_PTours_mode ON PersonTours (mode)')
+            self._con.commit()
+
         self.tours_indiv = self._unsample(self._count_rows('Tours', 'is_joint=0'))
         self.tours_joint = self._unsample(self._count_rows('Tours', 'is_joint=1'))
         self.tours = self.tours_indiv + self.tours_joint
@@ -225,6 +241,11 @@ class ABM(object):
             self._insert_trips(self._trips_indiv_csv, is_joint=False)
             self._insert_trips(self._trips_joint_csv, is_joint=True)
 
+            self._con.execute('CREATE INDEX IX_Trips_isjnt ON Trips (is_joint)')
+            self._con.execute('CREATE INDEX IX_Trips_mode ON Trips (mode)')
+            self._con.execute('CREATE INDEX IX_PTrips_mode ON PersonTrips (mode)')
+            self._con.commit()
+
         self.trips_indiv = self._unsample(self._count_rows('Trips', 'is_joint=0'))
         self.trips_joint = self._unsample(self._count_rows('Trips', 'is_joint=1'))
         self.trips = self.trips_indiv + self.trips_joint
@@ -255,6 +276,9 @@ class ABM(object):
                 pass_mi REAL
             )''')
             self._insert_tsegs()
+
+            self._con.execute('CREATE INDEX IX_TSegs_alwbrd ON TransitSegs (allow_boardings)')
+            self._con.commit()
 
         self.transit_segments = self._count_rows('TransitSegs')
         print '{0:<20}{1:>10,.0f}'.format('-- Transit Segments:', self.transit_segments)
@@ -343,15 +367,27 @@ class ABM(object):
             raise ValueError('Argument node_or_line must be "NODE" or "LINE".')
 
         # Construct dictionary from SQL query results
-        self.open_db()
-        boarding_query = 'SELECT {0}, SUM(boardings), is_rail FROM TransitSegs WHERE allow_boardings=1 GROUP BY {0}'.format(group)
         if split_rail:
             boardings = {'RAIL': {}, 'BUS': {}}
-            for r in self.query(boarding_query):
-                mode = 'RAIL' if r[2] else 'BUS'
-                boardings[mode][r[0]] = r[1]
         else:
-            boardings = {r[0]: r[1] for r in self.query(boarding_query)}
+            boardings = {}
+
+        self.open_db()
+        boarding_query = 'SELECT {0}, SUM(boardings), is_rail, tod, headway FROM TransitSegs WHERE allow_boardings=1 GROUP BY {0}'.format(group)
+        for r in self.query(boarding_query):
+            mode = 'RAIL' if r[2] else 'BUS'
+
+            # If 'LINE', scale multiple-run vehicles to average single-run boardings
+            if node_or_line == 'NODE' or r[4] == 99:  # Metra and CTA have headway=99, but every run is modeled
+                run_scaling = 1.0
+            else:
+                run_scaling = min(1.0, r[4] / self.tod_minutes[r[3]])  # headway / minutes in TOD period (ceiling of 1.0)
+
+            # Add boardings to appropriate dictionary
+            if split_rail:
+                boardings[mode][r[0]] = r[1] * run_scaling
+            else:
+                boardings[r[0]] = r[1] * run_scaling
         self.close_db()
 
         return boardings
