@@ -1,6 +1,6 @@
 from results import *
 
-GROUPS = 7
+GROUPS = 6
 FRACTION = 0.5
 REBUILD_DBS = False
 
@@ -28,24 +28,42 @@ groups_b = {
 }
 
 
-# Print base bus boardings
+# Print base boardings
 print '\n', b
 
 for node_or_line in sorted(groups_b.keys()):
-    print node_or_line
-    qnt_b = groups_b[node_or_line]
+    print node_or_line, 'BASE MEAN BOARDINGS'
+    grp_b = groups_b[node_or_line]
     brd_b = boardings_b[node_or_line]
 
     # Print mean base boardings by quantile
     for i in xrange(GROUPS):
-        n = sum((1 for k in qnt_b.keys() if qnt_b[k] == i+1))
-        mean_base_brd = sum((brd_b[k] for k in qnt_b.keys() if qnt_b[k] == i+1)) / n if n else 0.
-        print 'Q{0} ({1}): {2}'.format(i+1, n, mean_base_brd)
+        n = sum((1 for k in grp_b.keys() if grp_b[k] == i+1))
+        mean_base_brd = sum((brd_b[k] for k in grp_b.keys() if grp_b[k] == i+1)) / n if n else 0.
+        print 'G{0} ({1}): {2}'.format(i+1, n, mean_base_brd)
 
     # Print mean base boardings for all nodes/lines
-    n = sum((1 for k in qnt_b.keys()))
-    mean_base_brd = sum((brd_b[k] for k in qnt_b.keys())) / n if n else 0.  # Mean of all boardings
+    n = sum((1 for k in grp_b.keys()))
+    mean_base_brd = sum((brd_b[k] for k in grp_b.keys())) / n if n else 0.  # Mean of all boardings
     print 'ALL ({0}): {1}\n'.format(n, mean_base_brd)
+
+
+# Print groups' modal composition
+for node_or_line in ['LINE']:
+    print node_or_line, 'MODAL COMPOSITION'
+    grp_b = groups_b[node_or_line]
+    brd_b = boardings_b[node_or_line]
+
+    # Print mean base boardings by quantile
+    for i in xrange(GROUPS):
+        modes = set((str(tline[0]).upper() for tline in grp_b.keys()))
+        n = {}
+        for mode in sorted(modes):
+            n[mode] = sum((1. for k in grp_b.keys() if grp_b[k] == i+1 and str(k[0]).upper() == mode))
+        pct = {mode: round(100.0 * n[mode] / sum(n.itervalues()), 2) for mode in n.keys()}
+        print 'G{0}: {1}'.format(i+1, pct)
+
+print '\n'
 
 
 # Compare test scenario boardings with base, by quantile
@@ -53,11 +71,11 @@ def compare_boardings(t, node_or_line, mode=''):
     print '\n', t, mode
 
     if mode:
-        qnt_b = groups_b[node_or_line][mode]
+        grp_b = groups_b[node_or_line][mode]
         brd_b = boardings_b[node_or_line][mode]
         brd_t = t._get_boardings(node_or_line, split_rail=True)[mode]
     else:
-        qnt_b = groups_b[node_or_line]
+        grp_b = groups_b[node_or_line]
         brd_b = boardings_b[node_or_line]
         brd_t = t._get_boardings(node_or_line, split_rail=False)
 
@@ -65,13 +83,13 @@ def compare_boardings(t, node_or_line, mode=''):
 
     # Print mean additional boardings by quantile
     for i in xrange(GROUPS):
-        n = sum((1 for k in qnt_b.keys() if qnt_b[k] == i+1))
-        mean_new_brd = sum((brd_diff[k] for k in qnt_b.keys() if qnt_b[k] == i+1)) / n if n else 0.
-        print 'Q{0} ({1}): {2}'.format(i+1, n, mean_new_brd)
+        n = sum((1 for k in grp_b.keys() if grp_b[k] == i+1))
+        mean_new_brd = sum((brd_diff[k] for k in grp_b.keys() if grp_b[k] == i+1)) / n if n else 0.
+        print 'G{0} ({1}): {2}'.format(i+1, n, mean_new_brd)
 
     # Print mean additional boardings for all nodes/lines
-    n = sum((1 for k in qnt_b.keys()))
-    mean_new_brd = sum((brd_diff[k] for k in qnt_b.keys())) / n if n else 0.  # Mean of all boardings
+    n = sum((1 for k in grp_b.keys()))
+    mean_new_brd = sum((brd_diff[k] for k in grp_b.keys())) / n if n else 0.  # Mean of all boardings
     print 'ALL ({0}): {1}\n'.format(n, mean_new_brd)
 
     return brd_t
