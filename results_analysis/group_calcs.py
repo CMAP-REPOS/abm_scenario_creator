@@ -38,13 +38,13 @@ for node_or_line in sorted(groups_b.keys()):
 
     # Print mean base boardings by quantile
     for i in xrange(GROUPS):
-        n = sum((1 for k in grp_b.keys() if grp_b[k] == i+1))
-        mean_base_brd = sum((brd_b[k] for k in grp_b.keys() if grp_b[k] == i+1)) / n if n else 0.
+        n = sum((1 for k in grp_b.iterkeys() if grp_b[k] == i+1))
+        mean_base_brd = sum((brd_b[k] for k in grp_b.iterkeys() if grp_b[k] == i+1)) / n if n else 0.
         print 'G{0} ({1}): {2}'.format(i+1, n, mean_base_brd)
 
     # Print mean base boardings for all nodes/lines
-    n = sum((1 for k in grp_b.keys()))
-    mean_base_brd = sum((brd_b[k] for k in grp_b.keys())) / n if n else 0.  # Mean of all boardings
+    n = sum((1 for k in grp_b.iterkeys()))
+    mean_base_brd = sum((brd_b[k] for k in grp_b.iterkeys())) / n if n else 0.  # Mean of all boardings
     print 'ALL ({0}): {1}\n'.format(n, mean_base_brd)
 
 
@@ -56,10 +56,10 @@ for node_or_line in ['LINE']:
 
     # Print mean base boardings by quantile
     for i in xrange(GROUPS):
-        modes = set((str(tline[0]).upper() for tline in grp_b.keys()))
+        modes = set((str(tline[0]).upper() for tline in grp_b.iterkeys()))
         n = {}
         for mode in sorted(modes):
-            n[mode] = sum((1. for k in grp_b.keys() if grp_b[k] == i+1 and str(k[0]).upper() == mode))
+            n[mode] = sum((1. for k in grp_b.iterkeys() if grp_b[k] == i+1 and str(k[0]).upper() == mode))
         pct = {mode: round(100.0 * n[mode] / sum(n.itervalues()), 2) for mode in n.keys()}
         print 'G{0}: {1}'.format(i+1, pct)
 
@@ -79,17 +79,17 @@ def compare_boardings(t, node_or_line, mode=''):
         brd_b = boardings_b[node_or_line]
         brd_t = t._get_boardings(node_or_line, split_rail=False)
 
-    brd_diff = {k: brd_t[k] - brd_b[k] for k in brd_b.keys()}
+    brd_diff = {k: brd_t[k] - brd_b[k] for k in brd_b.iterkeys()}
 
     # Print mean additional boardings by quantile
     for i in xrange(GROUPS):
         n = sum((1 for k in grp_b.keys() if grp_b[k] == i+1))
-        mean_new_brd = sum((brd_diff[k] for k in grp_b.keys() if grp_b[k] == i+1)) / n if n else 0.
+        mean_new_brd = sum((brd_diff[k] for k in grp_b.iterkeys() if grp_b[k] == i+1)) / n if n else 0.
         print 'G{0} ({1}): {2}'.format(i+1, n, mean_new_brd)
 
     # Print mean additional boardings for all nodes/lines
     n = sum((1 for k in grp_b.keys()))
-    mean_new_brd = sum((brd_diff[k] for k in grp_b.keys())) / n if n else 0.  # Mean of all boardings
+    mean_new_brd = sum((brd_diff[k] for k in grp_b.iterkeys())) / n if n else 0.  # Mean of all boardings
     print 'ALL ({0}): {1}\n'.format(n, mean_new_brd)
 
     return brd_t
