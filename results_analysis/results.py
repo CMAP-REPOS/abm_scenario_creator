@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 2/2/15
+    Revised: 2/26/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -15,6 +15,7 @@ import csv
 import math
 import sqlite3
 import pandas as pd
+from collections import Counter
 from inro.emme.database import emmebank as _eb
 
 
@@ -95,6 +96,7 @@ class ABM(object):
 
         # Set CT-RAMP CSV paths
         self._tap_attr_csv = os.path.join(self._input_dir, 'tap_attributes.csv')
+        self._tap_lines_csv = os.path.join(self._output_dir, 'tapLines.csv')
         self._hh_data_csv = os.path.join(self._output_dir, 'hhData_1.csv')
         self._pers_data_csv = os.path.join(self._output_dir, 'personData_1.csv')
         self._tours_indiv_csv = os.path.join(self._output_dir, 'indivTourData_1.csv')
@@ -111,6 +113,18 @@ class ABM(object):
                 tap = int(d['tap_id'])
                 zone = int(d['taz09'])
                 self.tap_zones[tap] = zone
+
+        self.tap_modes = {}
+        with open(self._tap_lines_csv, 'rb') as csvfile:
+            r = csv.DictReader(csvfile)
+            for d in r:
+                tap = int(d['TAP'])
+                tlines = d['LINES'].strip().split()
+                tline_modes = [tline[0].upper() for tline in tlines]
+                mode_counts = Counter(tline_modes)
+                modeshare = {mode: count / float(len(tlines)) for mode, count in mode_counts.iteritems()}
+                self.tap_modes[tap] = modeshare
+                ### NOTE: not true modeshare, doesn't account for headway, tod, or actual rider choices
 
         # Create DB to store CT-RAMP output
         print 'Opening database ({0})...'.format(self._db)
@@ -542,6 +556,23 @@ class ABM(object):
             return ptrips_by_class
         else:
             return ptrips_by_class[None]
+
+
+    def _guess_transit_ptrips_modes(self):
+        ''' Approximate the number of trips for each transit mode, based on '''
+        ''' the modeshare of tlines serving origin TAPs. '''
+        sql_select = 'SELECT Trips.tap_o'
+        sql_from = 'FROM PersonTrips LEFT JOIN Trips ON PersonTrips.trip_id=Trips.trip_id'
+        sql_where = 'WHERE Trips.tap_o > 0'
+        sql = ' '.join((sql_select, sql_from, sql_where))
+        mode_trips = {mode: 0.0 for mode in self.transit_modes.iterkeys()}
+        self.open_db()
+        for r in self.query(sql):
+            tap = r[0]
+            for mode, share in self.tap_modes[tap].iteritems():
+                mode_trips[mode] += self._unsample(share)
+        self.close_db()
+        return mode_trips
 
 
     def _insert_households(self, hh_csv):
@@ -1013,7 +1044,7 @@ class Comparison(object):
                 trips_dict_base[pers_id][group_key] = self.base._unsample(count)
             for pers_id, count in self.test.query(mode_sql):
                 trips_dict_test[pers_id][group_key] = self.test._unsample(count)
-            for pers_id in trips_dict_diff.keys():
+            for pers_id in trips_dict_diff.iterkeys():
                 trips_dict_diff[pers_id][group_key] = trips_dict_test[pers_id][group_key] - trips_dict_base[pers_id][group_key]
 
         return trips_dict_diff
