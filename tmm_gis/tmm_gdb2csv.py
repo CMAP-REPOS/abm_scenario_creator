@@ -160,6 +160,7 @@ def adjust_relim_value(tline_id, tline_dict, csv_dict):
         imp_rel_int = tline_dict[tline_id]['IMP_RELIABILITY']
         imp_rel_pct = imp_rel_int / 100.0
         adjusted_relim_value = round(current_relim_value * (1.0 - imp_rel_pct), 2)
+        csv_dict[tline_id]['@relim'] = adjusted_relim_value
 
         return str(adjusted_relim_value)
 
@@ -177,6 +178,7 @@ def adjust_rspac_value(node_id, node_dict, csv_dict):
     if node_id in node_dict:
         new_parking = node_dict[node_id]['ADD_PARKING']
         adjusted_rspac_value = max(current_rspac_value + new_parking, 0)  # Don't allow net-negative values
+        csv_dict[node_id]['@rspac'] = adjusted_rspac_value
 
         return str(adjusted_rspac_value)
 
@@ -283,7 +285,7 @@ for node_id in bus_csv_dict.iterkeys():
 for node_id in rail_csv_dict.iterkeys():
     adjust_type_value(node_id, node_gdb_dict, rail_csv_dict, '@rstyp')
     adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
-    adjust_rspac_value(node_id, node_gdb_dict, rail_csv_dict, '@rspac')
+    adjust_rspac_value(node_id, node_gdb_dict, rail_csv_dict)
 
 for tline_id in easeb_csv_dict.iterkeys():
     adjust_easeb_value(tline_id, tline_gdb_dict, easeb_csv_dict)
