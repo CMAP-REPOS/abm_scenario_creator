@@ -2,7 +2,7 @@
 '''
     tmm_gdb2csv.py
     Author: npeterson
-    Revised: 4/7/2014
+    Revised: 4/9/2015
     ---------------------------------------------------------------------------
     This script will use the extra attribute tables in TMM_GIS.gdb to create
     updated versions of the batchin CSVs used to construct the transit network
@@ -32,11 +32,13 @@ bus_node_attr_csv_in = os.path.join(input_dir, 'bus_node_extra_attributes.csv')
 rail_node_attr_csv_in = os.path.join(input_dir, 'rail_node_extra_attributes.csv')
 tline_easeb_csv_in = os.path.join(input_dir, 'boarding_ease_by_line_id.csv')
 tline_prof_csv_in = os.path.join(input_dir, 'productivity_bonus_by_line_id.csv')
+tline_relim_csv_in = os.path.join(input_dir, 'relim_by_line_id.csv')
 
 bus_node_attr_csv_out = bus_node_attr_csv_in.replace(input_dir, output_dir)
 rail_node_attr_csv_out = rail_node_attr_csv_in.replace(input_dir, output_dir)
 tline_easeb_csv_out = tline_easeb_csv_in.replace(input_dir, output_dir)
 tline_prof_csv_out = tline_prof_csv_in.replace(input_dir, output_dir)
+tline_relim_csv_out = tline_relim_csv_in.replace(input_dir, output_dir)
 
 
 # -----------------------------------------------------------------------------
@@ -60,12 +62,12 @@ def adjust_easeb_value(tline_id, tline_dict, csv_dict):
         }
 
         # Get current field values
-        for attr in field_fwv.keys():
+        for attr in field_fwv.iterkeys():
             field_fwv[attr]['v'] = float(tline_dict[tline_id][attr])
 
         # Calculate node's improvement score (0-2)
-        node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
-        max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.keys()])
+        node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.iterkeys()])
+        max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.iterkeys()])
         pct_improvement = node_improvement / max_improvement
 
         # Calculate adjusted easeb value
@@ -124,7 +126,7 @@ def adjust_prof_values(tline_id, tline_dict, csv_dict):
         }
 
         # Get current field values
-        for attr in field_fwv.keys():
+        for attr in field_fwv.iterkeys():
             field_fwv[attr]['v'] = int(tline_dict[tline_id][attr])
 
         # Calculate productivity bonuses
@@ -146,6 +148,41 @@ def adjust_prof_values(tline_id, tline_dict, csv_dict):
     # Ignore tlines not in GDB
     else:
         return current_prof_values
+
+
+def adjust_relim_value(tline_id, tline_dict, csv_dict):
+    ''' Decrease reliability impact in proportion to specified reliability improvement. '''
+    # Get current reliability impact (@relim) value
+    current_relim_value = float(csv_dict[tline_id]['@relim'])
+
+    # Caluclate the updated value for tlines in GDB
+    if tline_id in tline_dict:
+        imp_rel_int = tline_dict[tline_id]['IMP_RELIABILITY']
+        imp_rel_pct = imp_rel_int / 100.0
+        adjusted_relim_value = round(current_relim_value * (1.0 - imp_rel_pct), 2)
+
+        return str(adjusted_relim_value)
+
+    # Ignore tlines not in GDB
+    else:
+        return str(current_relim_value)
+
+
+def adjust_rspac_value(node_id, node_dict, csv_dict):
+    ''' Add new parking spaces to nodes. RAIL ONLY! '''
+    # Get current parking spaces (@rspac) count
+    current_rspac_value = int(csv_dict[node_id]['@rspac'])
+
+    # Caluclate the updated value for nodes in GDB
+    if node_id in node_dict:
+        new_parking = node_dict[node_id]['ADD_PARKING']
+        adjusted_rspac_value = current_rspac_value + new_parking
+
+        return str(adjusted_rspac_value)
+
+    # Ignore nodes not in GDB
+    else:
+        return str(current_rspac_value)
 
 
 def adjust_type_value(node_id, node_dict, csv_dict, type_field):
@@ -173,12 +210,12 @@ def adjust_type_value(node_id, node_dict, csv_dict, type_field):
         }
 
         # Get current field values
-        for attr in field_fwv.keys():
+        for attr in field_fwv.iterkeys():
             field_fwv[attr]['v'] = float(node_dict[node_id][attr])
 
         # Calculate node's improvement score (0-4)
-        node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.keys()])
-        max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.keys()])
+        node_improvement = sum([field_fwv[attr]['v'] * field_fwv[attr]['f'] * field_fwv[attr]['w'] for attr in field_fwv.iterkeys()])
+        max_improvement = sum([field_fwv[attr]['w'] for attr in field_fwv.iterkeys()])
         pct_improvement = node_improvement / max_improvement
 
         # Calculate adjusted type value
@@ -217,7 +254,7 @@ def write_dict_to_csv(csv_file, csv_dict, csv_fields, id_is_tline=False):
     with open(csv_file, 'wb') as attr_csv:
         dict_writer = csv.DictWriter(attr_csv, csv_fields)
         dict_writer.writeheader()
-        sorted_keys = sorted(csv_dict.keys())
+        sorted_keys = sorted(csv_dict.iterkeys())
         for dict_id in sorted_keys:
             dict_writer.writerow(csv_dict[dict_id])
     return csv_file
@@ -233,24 +270,29 @@ bus_csv_dict, bus_csv_fields = make_dict_from_csv(bus_node_attr_csv_in)
 rail_csv_dict, rail_csv_fields = make_dict_from_csv(rail_node_attr_csv_in)
 easeb_csv_dict, easeb_csv_fields = make_dict_from_csv(tline_easeb_csv_in, id_is_tline=True)
 prof_csv_dict, prof_csv_fields = make_dict_from_csv(tline_prof_csv_in, id_is_tline=True)
+relim_csv_dict, relim_csv_fields = make_dict_from_csv(tline_relim_csv_in, id_is_tline=True)
 
 
 # -----------------------------------------------------------------------------
 #  Update dictionary values to reflect GDB scenario.
 # -----------------------------------------------------------------------------
-for node_id in bus_csv_dict.keys():
+for node_id in bus_csv_dict.iterkeys():
     adjust_type_value(node_id, node_gdb_dict, bus_csv_dict, '@bstyp')
     adjust_info_value(node_id, node_gdb_dict, bus_csv_dict, '@bsinf')
 
-for node_id in rail_csv_dict.keys():
+for node_id in rail_csv_dict.iterkeys():
     adjust_type_value(node_id, node_gdb_dict, rail_csv_dict, '@rstyp')
     adjust_info_value(node_id, node_gdb_dict, rail_csv_dict, '@rsinf')
+    adjust_rspac_value(node_id, node_gdb_dict, rail_csv_dict, '@rspac')
 
-for tline_id in easeb_csv_dict.keys():
+for tline_id in easeb_csv_dict.iterkeys():
     adjust_easeb_value(tline_id, tline_gdb_dict, easeb_csv_dict)
 
-for tline_id in prof_csv_dict.keys():
+for tline_id in prof_csv_dict.iterkeys():
     adjust_prof_values(tline_id, tline_gdb_dict, prof_csv_dict)
+
+for tline_id in relim_csv_dict.iterkeys():
+    adjust_relim_value(tline_id, tline_gdb_dict, relim_csv_dict)
 
 
 # -----------------------------------------------------------------------------
@@ -260,3 +302,4 @@ write_dict_to_csv(bus_node_attr_csv_out, bus_csv_dict, bus_csv_fields)
 write_dict_to_csv(rail_node_attr_csv_out, rail_csv_dict, rail_csv_fields)
 write_dict_to_csv(tline_easeb_csv_out, easeb_csv_dict, easeb_csv_fields, id_is_tline=True)
 write_dict_to_csv(tline_prof_csv_out, prof_csv_dict, prof_csv_fields, id_is_tline=True)
+write_dict_to_csv(tline_relim_csv_out, relim_csv_dict, relim_csv_fields, id_is_tline=True)

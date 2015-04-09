@@ -2,7 +2,7 @@
 '''
     TMM.py
     Author: npeterson
-    Revised: 8/22/2014
+    Revised: 4/9/2015
     ---------------------------------------------------------------------------
     This module stores information used by other TMM scripts.
 
@@ -42,6 +42,7 @@ node_fields = (
     'FACELIFT',
     'IMP_LIGHTING',
     'IMP_WARMING',
+    'ADD_PARKING',
 )
 
 tline_fields = (
@@ -50,6 +51,7 @@ tline_fields = (
     'IMP_SEATS',
     'LOWER_FLOOR',
     'NEW_VEHICLES',
+    'IMP_RELIABILITY',
 )
 
 
