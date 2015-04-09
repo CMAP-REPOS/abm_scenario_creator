@@ -169,14 +169,14 @@ def adjust_relim_value(tline_id, tline_dict, csv_dict):
 
 
 def adjust_rspac_value(node_id, node_dict, csv_dict):
-    ''' Add new parking spaces to nodes. RAIL ONLY! '''
+    ''' Add new parking spaces to nodes. RAIL STATIONS ONLY! '''
     # Get current parking spaces (@rspac) count
     current_rspac_value = int(csv_dict[node_id]['@rspac'])
 
     # Caluclate the updated value for nodes in GDB
     if node_id in node_dict:
         new_parking = node_dict[node_id]['ADD_PARKING']
-        adjusted_rspac_value = current_rspac_value + new_parking
+        adjusted_rspac_value = max(current_rspac_value + new_parking, 0)  # Don't allow net-negative values
 
         return str(adjusted_rspac_value)
 
