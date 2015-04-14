@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 2/26/15
+    Revised: 4/14/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -299,6 +299,7 @@ class ABM(object):
 
         self.mode_share = self._get_mode_share()
         self.ptrips_by_class = self._get_ptrips_by_class()
+        self.vmt_by_speed = self._get_vmt_by_speed()
 
         self.close_db()
 
@@ -485,6 +486,61 @@ class ABM(object):
         return boarding_quantiles
 
 
+    def _get_link_speeds(self):
+        ''' Assign highway links a free-flow and congested speed (mph), based
+            on the in-link in the case of toll links (vdf=7). Return a nested
+            dict keyed by TOD and link id, with values being tuples of
+            (free-speed, congested-speed). '''
+        link_speeds = {}
+        toll_link_speeds = {}
+        emmebank = _eb.Emmebank(self._emmebank_path)
+        for tod in xrange(1, 9):
+            link_speeds[tod] = {}
+            toll_link_speeds[tod] = {}
+            scenario_id_hwy = '{0}'.format(tod)
+            scenario_hwy = emmebank.scenario(scenario_id_hwy)
+            network_hwy = scenario_hwy.get_network()
+
+            # Get inode for toll links
+            for link in network_hwy.links():
+                if link.volume_delay_func == 7:
+                    toll_link_speeds[tod][link.id] = None
+
+            toll_link_inodes = {link_id.split('-')[0]: link_id for link_id in toll_link_speeds[tod].iterkeys()}
+
+            # Calc speed for non-toll links, also assigning to toll links as appropriate
+            for link in network_hwy.links():
+                if link.volume_delay_func != 7:
+
+                    # Calculate volumes)
+                    vol = (  # Convert vehicle-equivalents to vehicles
+                        link['@vso1n']/1 + link['@vso1t']/1 + link['@vho2n']/1 + link['@vho2t']/1 +
+                        link['@vho3n']/1 + link['@vho3t']/1 + link['@vltrn']/1 + link['@vltrt']/1 +
+                        link['@vmtrn']/2 + link['@vmtrt']/2 + link['@vhtrn']/3 + link['@vhtrt']/3
+                    )
+
+                    # Get link travel times (minutes) and free-flow/modeled speeds (mph)
+                    fmph = link.length / (link['@ftime'] / 60) if link['@ftime'] else 0
+                    mph = link.length / (link.auto_time / 60) if link.auto_time else 0
+
+                    # Adjust arterial speeds
+                    if link.volume_delay_func == 1:
+                        cap = link.data2  # Capacity is batched in to ul2 during network building
+                        mph = fmph / ((math.log(fmph) * 0.249) + 0.153 * (vol / (cap * 0.75))**3.98)
+
+                    # Write speeds to appropriate dicts
+                    link_speeds[tod][link.id] = (fmph, mph)
+                    if link.j_node.id in toll_link_inodes:
+                        toll_link_id = toll_link_inodes[link.j_node.id]
+                        toll_link_speeds[tod][toll_link_id] = link_speeds[tod][link.id]
+
+            # Merge toll TOD dict into non-toll TOD dict
+            link_speeds[tod].update(toll_link_speeds[tod])
+
+        emmebank.dispose()  # Close Emmebank, remove lock
+        return link_speeds
+
+
     def _get_matrix_data(self, matrix, tod):
         ''' Return an Emme Matrix Data object for a specified matrix. '''
         emmebank = _eb.Emmebank(self._emmebank_path)
@@ -556,6 +612,67 @@ class ABM(object):
             return ptrips_by_class
         else:
             return ptrips_by_class[None]
+
+
+    def _get_vmt_by_speed(self):
+        ''' Sum daily VMT by vehicle speed, using 5 mph bins. For each TOD,
+            process highway network first, followed by buses in corresponding
+            transit network. '''
+        vmt_by_speed = {i*5: 0 for i in xrange(15)}  # 15 5-mph bins, keyed by minimum speed
+        link_speeds = self._get_link_speeds()
+        emmebank = _eb.Emmebank(self._emmebank_path)
+
+        for tod in xrange(1, 9):
+
+            # Auto VMT from links in TOD's highway network
+            scenario_id_hwy = '{0}'.format(tod)
+            scenario_hwy = emmebank.scenario(scenario_id_hwy)
+            network_hwy = scenario_hwy.get_network()
+
+            for link in network_hwy.links():
+
+                # Calculate VMT
+                vol = (  # Convert vehicle-equivalents to vehicles
+                    link['@vso1n']/1 + link['@vso1t']/1 + link['@vho2n']/1 + link['@vho2t']/1 +
+                    link['@vho3n']/1 + link['@vho3t']/1 + link['@vltrn']/1 + link['@vltrt']/1 +
+                    link['@vmtrn']/2 + link['@vmtrt']/2 + link['@vhtrn']/3 + link['@vhtrt']/3
+                )
+                vmt = vol * link.length
+
+                # Get link travel times (minutes) and free-flow/modeled speeds (mph)
+                fmph, mph = link_speeds[tod][link.id]
+
+                # Add VMT to appropriate speed bin
+                mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
+                vmt_by_speed[mph_bin] += vmt
+
+            # Bus VMT from transit segments in TOD's transit network
+            scenario_id_trn = '10{0}'.format(tod)
+            scenario_trn = emmebank.scenario(scenario_id_trn)
+            network_trn = scenario_trn.get_network()
+
+            for link in network_trn.links():
+
+                # Calculate headway- and TTF-adjusted VMT for each bus segment
+                for tseg in link.segments():
+                    if tseg.line.mode in ('B', 'E', 'L', 'P', 'Q'):
+
+                        # Calculate line-specific volume from headway: must be at least 1; ignore headways of 99 mins)
+                        vol = max(self.tod_minutes(tod) / tseg['@hdway'], 1) if tseg['@hdway'] != 99 else 1
+                        vmt = vol * link.length
+
+                        # Get link travel times (minutes) and free-flow/modeled speeds (mph)
+                        fmph, mph = link_speeds[tod][link.id]
+
+                        # Add VMT to appropriate speed bin
+                        if tseg.transit_time_func == 2:
+                            mph_bin = 5 * min(int(math.floor(fmph / 5)), 14)
+                        else:
+                            mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
+                        vmt_by_speed[mph_bin] += vmt
+
+        emmebank.dispose()  # Close Emmebank, remove lock
+        return vmt_by_speed
 
 
     def _guess_transit_ptrips_modes(self):
@@ -894,6 +1011,25 @@ class ABM(object):
                 pmt = self.transit_stats['PMT'][mode_code]
                 pht = self.transit_stats['PHT'][mode_code]
                 print ' {0:<20} | {1:>15,.0f} | {2:>15,.0f} | {3:>15,.0f} '.format(mode_desc, boardings, pmt, pht)
+        print ' '
+        return None
+
+
+    def print_vmt_by_speed(self):
+        ''' Print the total daily VMT by 5-mph speed bin. '''
+        print ' '
+        print 'DAILY VMT BY SPEED (MPH)'
+        print '------------------------'
+        total_vmt = sum(self.vmt_by_speed.itervalues())
+        for speed_bin in sorted(self.vmt_by_speed.keys()):
+            vmt = self.vmt_by_speed[speed_bin]
+            vmt_pct = vmt / total_vmt
+            if speed_bin <= 65:
+                bin_label = '{0}-{1}'.format(speed_bin, speed_bin+5)
+            else:
+                bin_label = '70+'
+            print '{0:<6}{1:>15,.2f} ({2:.2%})'.format(bin_label, vmt, vmt_pct)
+        print '{0:<6}{1:>15,.2f}'.format('Total', total_vmt)
         print ' '
         return None
 
@@ -1267,6 +1403,30 @@ class Comparison(object):
         return None
 
 
+    def print_vmt_by_speed_change(self):
+        ''' Print the change in total daily VMT by 5-mph speed bin. '''
+        print ' '
+        print 'CHANGE IN DAILY VMT BY SPEED (MPH)'
+        print '----------------------------------'
+        total_base_vmt = sum(self.base.vmt_by_speed.itervalues())
+        total_test_vmt = sum(self.test.vmt_by_speed.itervalues())
+        total_vmt_diff = total_test_vmt - total_base_vmt
+        total_pct_diff = total_vmt_diff / total_base_vmt
+        for speed_bin in sorted(self.base.vmt_by_speed.keys()):
+            base_vmt = self.base.vmt_by_speed[speed_bin]
+            test_vmt = self.test.vmt_by_speed[speed_bin]
+            vmt_diff = test_vmt - base_vmt
+            vmt_pct_diff = vmt_diff / base_vmt
+            if speed_bin <= 65:
+                bin_label = '{0}-{1}'.format(speed_bin, speed_bin+5)
+            else:
+                bin_label = '70+'
+            print '{0:<6}{1:>15,.2f} ({2:.2%})'.format(bin_label, vmt_diff, vmt_pct_diff)
+        print '{0:<6}{1:>15,.2f} ({2:+.2%})'.format('Total', total_vmt_diff, total_pct_diff)
+        print ' '
+        return None
+
+
 ### SCRIPT MODE ###
 def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
          test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_mod_20150109',
@@ -1278,6 +1438,7 @@ def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
     base.print_mode_share()
     base.print_transit_stats()
     base.print_ptrips_by_class()
+    base.print_vmt_by_speed()
     base.close_db()
     print base
     print ' '
@@ -1288,6 +1449,7 @@ def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
     test.print_mode_share()
     test.print_transit_stats()
     test.print_ptrips_by_class()
+    test.print_vmt_by_speed()
     test.close_db()
     print test
     print ' '
@@ -1303,6 +1465,7 @@ def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
     comp.print_mode_share_change()
     comp.print_transit_stats_change()
     comp.print_ptrips_by_class_change()
+    comp.print_vmt_by_speed_change()
     #comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_zn_o.csv'), 'zone', 'origin')
     #comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_zn_d.csv'), 'zone', 'destination')
     #comp.export_persontrips_csv(os.path.join(base._TEST_DIR, 'persontrips_by_sz_o.csv'), 'subzone', 'origin')
