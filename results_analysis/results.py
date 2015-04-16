@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 4/14/15
+    Revised: 4/16/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
