@@ -277,7 +277,7 @@ q
 ~+|1|y|@easb2|n|1||@easeb=1.50,2.49||all|4
 ~+|1|y|@easb3|n|1||@easeb=2.50,4.00||all|4
 q
-/ INPUT RELIABILITY POLICY IMPACT
+~/ INPUT RELIABILITY POLICY IMPACT
 / 1.00=baseline
 / 0.00=fully reliable
 ~# Previously hardcoded by mode in Transit_assignment_skimming_CT_RAMP3.mac (NMP 4/16/15):
