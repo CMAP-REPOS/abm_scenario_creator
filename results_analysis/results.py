@@ -615,9 +615,9 @@ class ABM(object):
 
 
     def _get_vmt_by_speed(self):
-        ''' Sum daily VMT by vehicle speed, using 5 mph bins. For each TOD,
-            process highway network first, followed by buses in corresponding
-            transit network. '''
+        ''' Sum daily VMT by vehicle speed within the CMAP region, using 5 mph
+            bins. For each TOD, process highway network first, followed by
+            buses in corresponding transit network. '''
         vmt_by_speed = {i*5: 0 for i in xrange(15)}  # 15 5-mph bins, keyed by minimum speed
         link_speeds = self._get_link_speeds()
         emmebank = _eb.Emmebank(self._emmebank_path)
@@ -630,21 +630,22 @@ class ABM(object):
             network_hwy = scenario_hwy.get_network()
 
             for link in network_hwy.links():
+                if 1 <= link.i_node['@zone'] <= 1711:
 
-                # Calculate VMT
-                vol = (  # Convert vehicle-equivalents to vehicles
-                    link['@vso1n']/1 + link['@vso1t']/1 + link['@vho2n']/1 + link['@vho2t']/1 +
-                    link['@vho3n']/1 + link['@vho3t']/1 + link['@vltrn']/1 + link['@vltrt']/1 +
-                    link['@vmtrn']/2 + link['@vmtrt']/2 + link['@vhtrn']/3 + link['@vhtrt']/3
-                )
-                vmt = vol * link.length
+                    # Calculate VMT
+                    vol = (  # Convert vehicle-equivalents to vehicles
+                        link['@vso1n']/1 + link['@vso1t']/1 + link['@vho2n']/1 + link['@vho2t']/1 +
+                        link['@vho3n']/1 + link['@vho3t']/1 + link['@vltrn']/1 + link['@vltrt']/1 +
+                        link['@vmtrn']/2 + link['@vmtrt']/2 + link['@vhtrn']/3 + link['@vhtrt']/3
+                    )
+                    vmt = vol * link.length
 
-                # Get link travel times (minutes) and free-flow/modeled speeds (mph)
-                fmph, mph = link_speeds[tod][link.id]
+                    # Get link travel times (minutes) and free-flow/modeled speeds (mph)
+                    fmph, mph = link_speeds[tod][link.id]
 
-                # Add VMT to appropriate speed bin
-                mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
-                vmt_by_speed[mph_bin] += vmt
+                    # Add VMT to appropriate speed bin
+                    mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
+                    vmt_by_speed[mph_bin] += vmt
 
             # Bus VMT from transit segments in TOD's transit network
             scenario_id_trn = '10{0}'.format(tod)
@@ -652,24 +653,25 @@ class ABM(object):
             network_trn = scenario_trn.get_network()
 
             for link in network_trn.links():
+                if 1 <= link.i_node['@zone'] <= 1711:
 
-                # Calculate headway- and TTF-adjusted VMT for each bus segment
-                for tseg in link.segments():
-                    if tseg.line.mode in ('B', 'E', 'L', 'P', 'Q'):
+                    # Calculate headway- and TTF-adjusted VMT for each bus segment
+                    for tseg in link.segments():
+                        if tseg.line.mode in ('B', 'E', 'L', 'P', 'Q'):
 
-                        # Calculate line-specific volume from headway: must be at least 1; ignore headways of 99 mins)
-                        vol = max(self.tod_minutes(tod) / tseg['@hdway'], 1) if tseg['@hdway'] != 99 else 1
-                        vmt = vol * link.length
+                            # Calculate line-specific volume from headway: must be at least 1; ignore headways of 99 mins)
+                            vol = max(self.tod_minutes(tod) / tseg['@hdway'], 1) if tseg['@hdway'] != 99 else 1
+                            vmt = vol * link.length
 
-                        # Get link travel times (minutes) and free-flow/modeled speeds (mph)
-                        fmph, mph = link_speeds[tod][link.id]
+                            # Get link travel times (minutes) and free-flow/modeled speeds (mph)
+                            fmph, mph = link_speeds[tod][link.id]
 
-                        # Add VMT to appropriate speed bin
-                        if tseg.transit_time_func == 2:
-                            mph_bin = 5 * min(int(math.floor(fmph / 5)), 14)
-                        else:
-                            mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
-                        vmt_by_speed[mph_bin] += vmt
+                            # Add VMT to appropriate speed bin
+                            if tseg.transit_time_func == 2:
+                                mph_bin = 5 * min(int(math.floor(fmph / 5)), 14)
+                            else:
+                                mph_bin = 5 * min(int(math.floor(mph / 5)), 14)
+                            vmt_by_speed[mph_bin] += vmt
 
         emmebank.dispose()  # Close Emmebank, remove lock
         return vmt_by_speed
