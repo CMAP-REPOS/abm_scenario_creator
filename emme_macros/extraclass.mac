@@ -38,6 +38,8 @@ s=%1%
 ~:SKIP15
 ~+|@tollv|~?e|~$>SKIP16|y|3
 ~:SKIP16
+~+|@zone|~?e|~$>SKIP17|y|3
+~:SKIP17
 ~+||q 
 /Create extra attributes
 2.42
