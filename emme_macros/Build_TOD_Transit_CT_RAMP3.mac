@@ -2,7 +2,7 @@
 ~# BUILD_TOD_TRANSIT_CT_RAMP
 ~#   Based on BUILD_TOD_TRANSIT of Craig Heither, last revised 02/13/2012
 ~#   Adjusted for CT-RAMP by Peter Vovsha, last revised 12/15/2012
-~#   Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
+~#   Modifications by Noel Peterson for Transit Modernization Model, 4/16/15
 ~#  ************************************************************************************************
 ~#    Macro used to create time-of-day-specific transit network for assignment & skimming
 ~#    Segment variable @hwytm is populated with congested travel time
@@ -276,6 +276,14 @@ q
 ~+|1|y|@easb1|n|1||@easeb=1.00,1.49||all|4
 ~+|1|y|@easb2|n|1||@easeb=1.50,2.49||all|4
 ~+|1|y|@easb3|n|1||@easeb=2.50,4.00||all|4
+q
+/ INPUT RELIABILITY POLICY IMPACT
+/ 1.00=baseline
+/ 0.00=fully reliable
+~# Previously hardcoded by mode in Transit_assignment_skimming_CT_RAMP3.mac (NMP 4/16/15):
+batchin=%t2%\relim_by_line_id.csv
+2.41
+~+|3|@relim|n|all|1,2|n|y
 q
 ~/ INPUT PRODUCTIVITY BONUS FACTORS
 batchin=%t2%\productivity_bonus_by_line_id.csv

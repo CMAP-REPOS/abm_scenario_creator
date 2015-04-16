@@ -1,6 +1,6 @@
 /Transit Assignment and Skimming for CT-RAMP
 /Extended set of premium transit attributes 2013
-/Modifications by Noel Peterson for Transit Modernization Model, 09/11/2014
+/Modifications by Noel Peterson for Transit Modernization Model, 4/16/15
 ~o=295
 reports=nul
 /Transit scenario
@@ -211,12 +211,13 @@ q
 ~r74=0.048  /Coefficient for V/C
 ~r75=0.145  /Stop order (cumulative distance) share
 / Reliability policy impact variable by mode: 1.00=baseline, 0.00=fully reliable
-2.41
-~+|1|y|@relim|n|1.00||mod=BPL||4
-~+|1|y|@relim|n|1.00||mod=EQ ||4
-~+|1|y|@relim|n|1.00||mod=C  ||4
-~+|1|y|@relim|n|1.00||mod=M  ||4
-q
+~# Now batched in by Build_TOD_Transit_CT_RAMP3.mac (NMP, 4/16/15)
+~#2.41
+~#~+|1|y|@relim|n|1.00||mod=BPL||4
+~#~+|1|y|@relim|n|1.00||mod=EQ ||4
+~#~+|1|y|@relim|n|1.00||mod=C  ||4
+~#~+|1|y|@relim|n|1.00||mod=M  ||4
+~#q
 ~/ STATION CLEANLINESS INDEX
 ~/ Fixed component by station type (1.00=ideal, 0.00=worst)
 2.41
