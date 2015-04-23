@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 4/16/15
+    Revised: 4/23/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -273,7 +273,7 @@ class ABM(object):
         print 'Processing transit segments...'
         if build_db:
             self._con.execute('''CREATE TABLE TransitSegs (
-                tseg_id TEXT PRIMARY KEY,
+                tseg_id TEXT,
                 tline_id TEXT,
                 tline_desc TEXT,
                 headway REAL,
@@ -287,7 +287,8 @@ class ABM(object):
                 allow_boardings BOOLEAN,
                 passengers REAL,
                 pass_hrs REAL,
-                pass_mi REAL
+                pass_mi REAL,
+                PRIMARY KEY (tseg_id, tod)
             )''')
             self._insert_tsegs()
 
@@ -1018,7 +1019,8 @@ class ABM(object):
 
 
     def print_vmt_by_speed(self):
-        ''' Print the total daily VMT by 5-mph speed bin. '''
+        ''' Print the total daily VMT by 5-mph speed bin, including a crude
+            histogram. '''
         print ' '
         print 'DAILY VMT BY SPEED (MPH)'
         print '------------------------'
@@ -1030,7 +1032,8 @@ class ABM(object):
                 bin_label = '{0}-{1}'.format(speed_bin, speed_bin+5)
             else:
                 bin_label = '70+'
-            print '{0:<6}{1:>15,.2f} ({2:.2%})'.format(bin_label, vmt, vmt_pct)
+            numbers = '{0:<6}{1:>15,.2f} ({2:.2%})'.format(bin_label, vmt, vmt_pct)
+            print '{0:<30}  {1}'.format(numbers, '|' * int(round(vmt_pct * 100)))
         print '{0:<6}{1:>15,.2f}'.format('Total', total_vmt)
         print ' '
         return None
@@ -1430,12 +1433,13 @@ class Comparison(object):
 
 
 ### SCRIPT MODE ###
-def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
-         test_dir=r'X:\CMAQ_ABM_Models\cmaq_node_mod_20150109',
-         build_dbs=False):
+def main(
+        base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20140911',
+        test_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_PaceDempsterART'
+    ):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(base_dir, 0.20, build_dbs)
+    base = ABM(base_dir, 0.05, False)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
@@ -1446,7 +1450,7 @@ def main(base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20141204',
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(test_dir, 0.20, build_dbs)
+    test = ABM(test_dir, 0.05, False)
     test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
