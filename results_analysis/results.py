@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 4/23/15
+    Revised: 5/11/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -86,7 +86,7 @@ class ABM(object):
         self._input_dir = os.path.join(self.dir, 'model', 'inputs')
         self._output_dir = os.path.join(self.dir, 'model', 'outputs')
         self._emmebank_path = os.path.join(self.dir, 'model', 'CMAP-ABM', 'Database', 'emmebank')
-        self._TEST_DIR = r'C:\WorkSpace\Temp\ABM'                               ########## REMOVE LATER ##########
+        self._TEST_DIR = r'D:\workspace\Temp\ABM'                               ########## REMOVE LATER ##########
         self._db = os.path.join(self._TEST_DIR, '{0}.db'.format(self.name))     ########## CHANGE LATER ##########
         if build_db and os.path.exists(self._db):
             print 'Removing existing database...'
@@ -1426,7 +1426,7 @@ class Comparison(object):
                 bin_label = '{0}-{1}'.format(speed_bin, speed_bin+5)
             else:
                 bin_label = '70+'
-            print '{0:<6}{1:>15,.2f} ({2:.2%})'.format(bin_label, vmt_diff, vmt_pct_diff)
+            print '{0:<6}{1:>15,.2f} ({2:+.2%})'.format(bin_label, vmt_diff, vmt_pct_diff)
         print '{0:<6}{1:>15,.2f} ({2:+.2%})'.format('Total', total_vmt_diff, total_pct_diff)
         print ' '
         return None
@@ -1434,8 +1434,8 @@ class Comparison(object):
 
 ### SCRIPT MODE ###
 def main(
-        base_dir=r'X:\CMAQ_ABM_Models\cmaq_base_20140911',
-        test_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_PaceDempsterART'
+        base_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_base_5pct',
+        test_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_CTARPM'
     ):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
