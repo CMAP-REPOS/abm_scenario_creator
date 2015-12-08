@@ -2,7 +2,7 @@
 '''
     results.py
     Author: npeterson
-    Revised: 7/9/15
+    Revised: 12/8/15
     ---------------------------------------------------------------------------
     A module for reading TMM output files and matrix data into an SQL database
     for querying and summarization.
@@ -13,6 +13,7 @@ import sys
 import copy
 import csv
 import math
+import shelve
 import sqlite3
 import pandas as pd
 from collections import Counter
@@ -22,7 +23,7 @@ from inro.emme.database import emmebank as _eb
 class ABM(object):
     ''' A class for loading ABM model run output data into a SQLite database.
         Initialized with path (parent directory of 'model') and model run
-        sample rate (default 0.05). '''
+        sample rate (default 1.00). '''
 
     # --- Properties ---
     facility_types = {
@@ -50,6 +51,7 @@ class ABM(object):
     }
 
     tod_by_index = [
+        # List index corresponds to ABM time interval; value = TOD period
         None,                  # No CT-RAMP period 0
         1,1,1,                 # CT-RAMP periods 1-3: TOD 1 [3am, 6am)
         2,2,                   # CT-RAMP periods 4-5: TOD 2 [6am, 7am)
@@ -63,6 +65,7 @@ class ABM(object):
     ]
 
     tod_minutes = {
+        # Length of each TOD period in minutes
         1: 600.0,
         2: 60.0,
         3: 120.0,
@@ -101,7 +104,7 @@ class ABM(object):
 
 
     # --- Init ---
-    def __init__(self, abm_dir, sample_rate=0.20, build_db=False):
+    def __init__(self, abm_dir, sample_rate=1.00, build_db=False):
         self.dir = abm_dir
         self.sample_rate = sample_rate
         self.name = os.path.basename(self.dir)
@@ -161,6 +164,7 @@ class ABM(object):
                 sz INTEGER,
                 size INTEGER
             )''')
+            self._con.commit()
             self._insert_households(self._hh_data_csv)
 
         self.households = self._unsample(self._count_rows('Households'))
@@ -183,6 +187,7 @@ class ABM(object):
                 class_o_knr INTEGER,
                 FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
             )''')
+            self._con.commit()
             self._insert_people(self._pers_data_csv)
 
         self.people = self._unsample(self._count_rows('People'))
@@ -216,6 +221,7 @@ class ABM(object):
                 FOREIGN KEY (tour_id) REFERENCES Tours(tour_id),
                 FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
             )''')
+            self._con.commit()
             self._insert_tours(self._tours_indiv_csv, is_joint=False)
             self._insert_tours(self._tours_joint_csv, is_joint=True)
 
@@ -274,6 +280,7 @@ class ABM(object):
                 FOREIGN KEY (ptour_id) REFERENCES PersonTours(ptour_id),
                 FOREIGN KEY (hh_id) REFERENCES Households(hh_id)
             )''')
+            self._con.commit()
             self._insert_trips(self._trips_indiv_csv, is_joint=False)
             self._insert_trips(self._trips_joint_csv, is_joint=True)
 
@@ -312,6 +319,7 @@ class ABM(object):
                 pass_mi REAL,
                 PRIMARY KEY (tseg_id, tod)
             )''')
+            self._con.commit()
             self._insert_tsegs()
 
             self._con.execute('CREATE INDEX IX_TSegs_alwbrd ON TransitSegs (allow_boardings)')
@@ -1104,15 +1112,37 @@ class ABM(object):
 
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV and the People & Tours tables. '''
-        # Get people user-classes and tour categories for setting person-trip user-class
-        people_uclasses = {r[0]: list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
-        tour_categories = {r[0]: r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
+
+        ### DEBUG ###
+        import psutil
+        process = psutil.Process(os.getpid())
+        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'
+        ### /DEBUG ###
+
+        # Get people user-classes and tour categories for setting person-trip user-class.
+        # (Shelve these dicts to free up a ton of memory.)
+        people_uclasses_dict = {str(r[0]): list(r)[1:] for r in self.query("SELECT pers_id, class_w_wtt, class_w_pnr, class_w_knr, class_o_wtt, class_o_pnr, class_o_knr FROM People")}
+        people_uclasses_path = os.path.join(self._TEST_DIR, 'people_uclasses.shelve')
+        people_uclasses = shelve.open(people_uclasses_path)
+        people_uclasses.update(people_uclasses_dict)
+        del people_uclasses_dict
+
+        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
+
+        tour_categories_dict = {str(r[0]): r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
+        tour_categories_path = os.path.join(self._TEST_DIR, 'tour_categories.shelve')
+        tour_categories = shelve.open(tour_categories_path)
+        tour_categories.update(tour_categories_dict)
+        del tour_categories_dict
+
+        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
 
         # Load CSV into a pandas dataframe for easy slicing/querying
-        chunked_trips = pd.read_csv(trips_csv, chunksize=1000000)  # Chunk to avoid MemoryError
+        chunked_trips = pd.read_csv(trips_csv, iterator=True, chunksize=1000000)  # Chunk to avoid MemoryError
 
         # Process chunk of trips by matrix mode
         for trips in chunked_trips:
+            print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
             for matrix_mode in xrange(7):
                 # Filter trips by mode
                 if matrix_mode == 0:  # Walk, bike, walk-to-transit
@@ -1130,11 +1160,11 @@ class ABM(object):
                     subset_trips = mode_trips[mode_trips.stop_period.isin(ctramp_periods)]
                     matrix_ids = {}
                     matrix_data = {}
-                    if matrix_mode > 0:
-                        matrix_ids['t'] = 'mf{0}{1}'.format(tod, self._get_matrix_nums(matrix_mode)[0])
-                        matrix_ids['d'] = 'mf{0}{1}'.format(tod, self._get_matrix_nums(matrix_mode)[1])
-                        matrix_data['t'] = self._get_matrix_data(matrix_ids['t'], tod)
-                        matrix_data['d'] = self._get_matrix_data(matrix_ids['d'], tod)
+                    # if matrix_mode > 0:
+                    #     matrix_ids['t'] = 'mf{0}{1}'.format(tod, self._get_matrix_nums(matrix_mode)[0])
+                    #     matrix_ids['d'] = 'mf{0}{1}'.format(tod, self._get_matrix_nums(matrix_mode)[1])
+                    #     matrix_data['t'] = self._get_matrix_data(matrix_ids['t'], tod)
+                    #     matrix_data['d'] = self._get_matrix_data(matrix_ids['d'], tod)
 
                     # Copy data into database
                     for index, row in subset_trips.iterrows():
@@ -1159,18 +1189,19 @@ class ABM(object):
                         trip_id = '{0}-{1}-{2}'.format(tour_id, inbound, stop_id)
 
                         # Estimate DRIVE time, distance, speed
-                        if mode <= 6 or mode >= 13:  # Private autos, incl. taxis, school buses
-                            time = matrix_data['t'].get(zn_o, zn_d)
-                            distance = matrix_data['d'].get(zn_o, zn_d)
-                        elif mode in (11, 12):  # Drive-to-transit (assume drive alone, free)
-                            from_zone = self.tap_zones[tap_d] if inbound else zn_o
-                            to_zone = zn_d if inbound else self.tap_zones[tap_o]
-                            time = matrix_data['t'].get(from_zone, to_zone)
-                            distance = matrix_data['d'].get(from_zone, to_zone)
-                        else:  # Walk, bike, walk-to-transit
-                            time = 0
-                            distance = 0
-                        speed = distance / (time / 60) if (time and distance) else 0
+                        speed = time = distance = 0  ### DEBUG ###
+                        # if mode <= 6 or mode >= 13:  # Private autos, incl. taxis, school buses
+                        #     time = matrix_data['t'].get(zn_o, zn_d)
+                        #     distance = matrix_data['d'].get(zn_o, zn_d)
+                        # elif mode in (11, 12):  # Drive-to-transit (assume drive alone, free)
+                        #     from_zone = self.tap_zones[tap_d] if inbound else zn_o
+                        #     to_zone = zn_d if inbound else self.tap_zones[tap_o]
+                        #     time = matrix_data['t'].get(from_zone, to_zone)
+                        #     distance = matrix_data['d'].get(from_zone, to_zone)
+                        # else:  # Walk, bike, walk-to-transit
+                        #     time = 0
+                        #     distance = 0
+                        # speed = distance / (time / 60) if (time and distance) else 0
 
                         # Insert into table
                         db_row = (
@@ -1222,6 +1253,11 @@ class ABM(object):
                 del mode_trips
 
             del trips
+
+        people_uclasses.close()
+        tour_categories.close()
+        os.remove(people_uclasses_path)
+        os.remove(tour_categories_path)
 
         return None
 
@@ -1752,12 +1788,16 @@ class Comparison(object):
 
 ### SCRIPT MODE ###
 def main(
-        base_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_base_5pct',
-        test_dir=r'X:\CMAQ_ABM_Models\CMAQ_FY15\cmaq_CTASlowBus'
+        base_dir=r'X:\new_server_tests\test_5pct',
+        test_dir=r'X:\new_server_tests\test_50pct_newsocec_3sp',
+        base_pct=0.05,
+        test_pct=0.5,
+        base_build=False,
+        test_build=False
     ):
     print '\n{0:*^50}'.format(' P R O C E S S I N G ')
     print '\n{0:=^50}\n'.format(' BASE NETWORK ')
-    base = ABM(base_dir, 0.05, False)
+    base = ABM(base_dir, base_pct, base_build)
     base.open_db()
     base.print_mode_share()
     base.print_transit_stats()
@@ -1768,7 +1808,7 @@ def main(
     print ' '
 
     print '\n{0:=^50}\n'.format(' TEST NETWORK ')
-    test = ABM(test_dir, 0.05, False)
+    test = ABM(test_dir, test_pct, test_build)
     test.open_db()
     test.print_mode_share()
     test.print_transit_stats()
