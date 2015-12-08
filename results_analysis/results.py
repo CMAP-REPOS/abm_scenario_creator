@@ -1113,11 +1113,11 @@ class ABM(object):
     def _insert_trips(self, trips_csv, is_joint):
         ''' Populate the Trips and PersonTrips tables from a CSV and the People & Tours tables. '''
 
-        ### DEBUG ###
-        import psutil
-        process = psutil.Process(os.getpid())
-        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'
-        ### /DEBUG ###
+        # ### DEBUG ###
+        # import psutil
+        # process = psutil.Process(os.getpid())
+        # print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'
+        # ### /DEBUG ###
 
         # Get people user-classes and tour categories for setting person-trip user-class.
         # (Shelve these dicts to free up a ton of memory.)
@@ -1126,23 +1126,21 @@ class ABM(object):
         people_uclasses = shelve.open(people_uclasses_path)
         people_uclasses.update(people_uclasses_dict)
         del people_uclasses_dict
-
-        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
+        # print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
 
         tour_categories_dict = {str(r[0]): r[1] for r in self.query("SELECT tour_id, category FROM Tours")}
         tour_categories_path = os.path.join(self._TEST_DIR, 'tour_categories.shelve')
         tour_categories = shelve.open(tour_categories_path)
         tour_categories.update(tour_categories_dict)
         del tour_categories_dict
-
-        print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
+        # print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
 
         # Load CSV into a pandas dataframe for easy slicing/querying
         chunked_trips = pd.read_csv(trips_csv, iterator=True, chunksize=1000000)  # Chunk to avoid MemoryError
 
         # Process chunk of trips by matrix mode
         for trips in chunked_trips:
-            print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
+            # print str(process.memory_info().rss / 1024.0**3) + ' GB memory used'  ### DEBUG ###
             for matrix_mode in xrange(7):
                 # Filter trips by mode
                 if matrix_mode == 0:  # Walk, bike, walk-to-transit
