@@ -1,4 +1,4 @@
-CMAP-REPOS / tmm_programs
+CMAP-REPOS / abm_scenario_creator
 =======================
 As a part of the [Chicago Metropolitan Agency for Planning (CMAP)](http://www.cmap.illinois.gov)'s [Advanced Urban Model Development](http://www.cmap.illinois.gov/data/transportation/modeling) effort, a "Transit Modernization Model" has been developed that will allow for the incorporation of detailed information about the Chicago region's transit systems into our Travel Demand Models. This information includes rail station/bus stop cleanliness, the ease of boarding a particular vehicle, seating comfort, and the presence of real-time information at a station/stop, among other things.
 
